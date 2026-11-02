@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AETHER // PC Remote Agent</title>
+  <title>AETHER // Remote Control Windows 11</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Press+Start+2P&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -21,13 +21,12 @@
             minecraft: ['"Press Start 2P"', 'monospace'],
           },
           colors: {
-            obsidian: '#08090C',
-            cardBg: 'rgba(18, 22, 31, 0.65)',
-            glassBorder: 'rgba(255, 255, 255, 0.08)',
+            obsidian: '#06070B',
             appleBlue: '#2997FF',
             appleGreen: '#30D158',
             appleRed: '#FF453A',
-            happAccent: '#6366F1'
+            appleAmber: '#FF9F0A',
+            happIndigo: '#6366F1'
           }
         }
       }
@@ -35,72 +34,143 @@
   </script>
 
   <style>
+    :root {
+      --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
     * {
       -webkit-tap-highlight-color: transparent;
       user-select: none;
       box-sizing: border-box;
     }
 
-    body {
-      background-color: #08090C;
-      color: #E6E8EE;
+    html, body {
+      background-color: #06070B;
+      color: #F2F4F8;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
+    /* Архитектурная блокировка прокрутки фона при открытой панели */
+    body.scroll-locked {
+      position: fixed;
+      left: 0;
+      right: 0;
+      width: 100%;
+      overflow: hidden;
+    }
+
     #space-canvas {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
       z-index: 0;
       pointer-events: none;
     }
 
+    /* Эффект матового жидкого стекла (Liquid Glass) */
     .liquid-glass {
-      background: radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(17, 21, 29, 0.7);
-      backdrop-filter: blur(28px) saturate(190%);
-      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      background: radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(15, 19, 28, 0.72);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+      box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7), inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+      transition: border-color 0.25s var(--ease-spring), background-color 0.25s var(--ease-spring), transform 0.25s var(--ease-spring);
     }
 
     .liquid-glass-subtle {
-      background: rgba(22, 27, 38, 0.45);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(24, 30, 44, 0.5);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: all 0.2s var(--ease-spring);
+    }
+
+    /* Мягкие hover и spring-эффекты */
+    .interactive-card {
+      transition: transform 0.24s var(--ease-bounce), border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.25s ease;
+      will-change: transform;
+    }
+    @media (hover: hover) {
+      .interactive-card:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+        background-color: rgba(28, 35, 50, 0.78);
+      }
+    }
+    .interactive-card:active {
+      transform: scale(0.95);
+    }
+
+    /* Модальные окна и выдвижные шторки */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(3, 4, 8, 0.76);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.28s var(--ease-spring);
+    }
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-sheet {
+      transform: translateY(100%);
+      transition: transform 0.34s var(--ease-spring);
+      max-height: 86vh;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modal-backdrop.open .modal-sheet {
+      transform: translateY(0);
+    }
+
+    /* Ползунок громкости в стиле Windows 11 / Apple */
+    input[type=range].volume-slider {
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range].volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+      transition: transform 0.18s var(--ease-bounce);
+    }
+    input[type=range].volume-slider::-webkit-slider-thumb:active {
+      transform: scale(1.22);
+    }
+
+    /* Анимация эквалайзера Яндекс Музыки */
+    .eq-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: #FFCC00;
+      animation: eqPulse 0.8s ease-in-out infinite alternate;
+    }
+    .eq-bar:nth-child(2) { animation-delay: 0.2s; }
+    .eq-bar:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes eqPulse {
+      0% { height: 4px; opacity: 0.5; }
+      100% { height: 14px; opacity: 1; }
     }
 
     .font-minecraft-tag {
       font-family: 'Press Start 2P', monospace;
       font-size: 8px;
       letter-spacing: 0.5px;
-    }
-
-    .press-spring {
-      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-color 0.2s ease;
-      will-change: transform;
-    }
-    .press-spring:active {
-      transform: scale(0.94);
-    }
-
-    input[type=range] {
-      -webkit-appearance: none;
-      background: rgba(255, 255, 255, 0.1);
-      height: 6px;
-      border-radius: 9999px;
-      outline: none;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: #FFFFFF;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-      cursor: pointer;
     }
   </style>
 </head>
@@ -109,406 +179,517 @@
 
   <canvas id="space-canvas"></canvas>
 
-  <!-- Уведомления -->
-  <div id="toast" class="fixed top-5 z-50 flex items-center space-x-3 px-4 py-2.5 rounded-full liquid-glass border border-white/15 text-xs font-medium tracking-wide shadow-2xl transition-all duration-300 opacity-0 -translate-y-6 pointer-events-none">
-    <span id="toastIcon" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-    <span id="toastMsg" class="text-white/90">Команда отправлена</span>
+  <!-- Всплывающее уведомление (Toast) -->
+  <div id="toast" class="fixed top-4 z-[70] flex items-center space-x-2.5 px-4 py-2.5 rounded-full liquid-glass border border-white/15 text-xs font-medium shadow-2xl transition-all duration-300 opacity-0 -translate-y-6 pointer-events-none max-w-[90vw]">
+    <span id="toastDot" class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+    <span id="toastText" class="text-white/95 truncate">Готово</span>
   </div>
 
+  <!-- Основной интерфейс -->
   <main class="w-full max-w-md min-h-screen flex flex-col px-4 pt-4 pb-12 relative z-10">
-    
-    <!-- Заголовок -->
+
+    <!-- ШАПКА -->
     <header class="flex items-center justify-between py-2 mb-3">
       <div class="flex items-center space-x-3">
-        <div class="relative w-10 h-10 rounded-2xl liquid-glass flex items-center justify-center p-2 border border-white/15">
-          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M7.05 7.05l2.12 2.12m5.66 5.66l2.12 2.12M7.05 16.95l2.12-2.12m5.66-5.66l2.12-2.12" />
+        <div class="relative w-10 h-10 rounded-2xl liquid-glass flex items-center justify-center border border-white/15">
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <circle cx="12" cy="12" r="3.2" stroke-width="2" />
+            <path stroke-linecap="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M7.05 7.05l2.12 2.12m5.66 5.66l2.12 2.12M7.05 16.95l2.12-2.12m5.66-5.66l2.12-2.12" />
           </svg>
-          <span id="headerDot" class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-appleRed ring-2 ring-obsidian"></span>
+          <span id="connDot" class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-appleRed ring-2 ring-obsidian transition-colors"></span>
         </div>
-
         <div>
           <div class="flex items-center space-x-1.5">
-            <h1 class="text-sm font-semibold tracking-tight text-white flex items-center">
-              AETHER
-              <span class="ml-1.5 px-1.5 py-0.5 text-[9px] font-mono tracking-wider bg-white/10 text-white/70 rounded-md">PRO v2.6</span>
-              <span class="ml-1 px-1.5 py-0.5 font-minecraft-tag text-[7px] text-zinc-300 bg-white/5 border border-white/10 rounded">by smash</span>
-            </h1>
+            <h1 class="text-sm font-semibold tracking-tight text-white">AETHER</h1>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono bg-white/10 text-white/80 rounded">v3.0</span>
+            <span class="px-1.5 py-0.5 font-minecraft-tag text-[7px] text-zinc-300 bg-white/5 border border-white/10 rounded">by smash</span>
           </div>
-          <div class="flex items-center space-x-1.5 mt-0.5">
-            <p class="text-[11px] font-mono text-zinc-400" id="headerUptime">Синхронизация...</p>
-          </div>
+          <p id="connSubtext" class="text-[11px] font-mono text-zinc-400 mt-0.5">Синхронизация с ПК...</p>
         </div>
       </div>
 
       <div class="flex items-center space-x-2">
         <div class="px-2.5 py-1 rounded-full liquid-glass-subtle flex items-center space-x-1.5 text-[11px] font-mono text-zinc-300">
           <span id="pingDot" class="w-1.5 h-1.5 rounded-full bg-appleRed"></span>
-          <span id="pingValue">-- ms</span>
+          <span id="pingVal">-- ms</span>
         </div>
-        <button onclick="fetchStatus(true)" class="w-8 h-8 rounded-full liquid-glass flex items-center justify-center text-zinc-400 hover:text-white press-spring">
-          <svg class="w-4 h-4" id="refreshIcon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button onclick="pollStatus(true)" class="w-8 h-8 rounded-full liquid-glass flex items-center justify-center text-zinc-300 hover:text-white interactive-card" title="Обновить">
+          <svg id="syncIcon" class="w-4 h-4 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
     </header>
 
-    <!-- Спецификация железа -->
-    <section class="liquid-glass rounded-2xl p-4 mb-4 relative overflow-hidden">
+    <!-- КАРТОЧКА СИСТЕМЫ: i5-13600KF // RTX 3080 -->
+    <section class="liquid-glass rounded-2xl p-4 mb-3.5">
       <div class="flex justify-between items-start">
         <div>
-          <span class="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">Конфигурация</span>
-          <h2 class="text-sm font-medium text-white tracking-tight flex items-center mt-0.5">
-            i5-13600KF // RTX 3080
-          </h2>
-          <p class="text-[11px] text-zinc-400 font-mono mt-0.5">Palit GameRock • 32 GB DDR4</p>
+          <span class="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">Система Windows 11</span>
+          <h2 class="text-sm font-semibold text-white mt-0.5">i5-13600KF // RTX 3080 GameRock</h2>
+          <p id="hostNetInfo" class="text-[11px] text-zinc-400 font-mono mt-0.5">32 GB DDR4 • Ожидание сети</p>
         </div>
         <div class="text-right">
           <span class="text-[10px] uppercase tracking-widest text-zinc-400 font-medium">Аптайм</span>
-          <div class="text-xs font-mono text-emerald-400 mt-0.5 font-medium" id="uptimeCounter">--</div>
+          <div id="uptimeVal" class="text-xs font-mono text-emerald-400 mt-0.5 font-medium">--</div>
         </div>
       </div>
 
-      <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/5">
-        <div class="text-center">
-          <span class="text-[10px] text-zinc-400 block">Потребление</span>
-          <span class="text-xs font-mono font-medium text-white" id="powerDraw">-- W</span>
+      <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/5 text-center">
+        <div>
+          <span class="text-[10px] text-zinc-400 block">Питание GPU</span>
+          <span id="gpuPowerVal" class="text-xs font-mono font-medium text-white">-- W</span>
         </div>
-        <div class="text-center border-x border-white/5">
+        <div class="border-x border-white/5">
           <span class="text-[10px] text-zinc-400 block">Кулеры GPU</span>
-          <span class="text-xs font-mono font-medium text-white" id="fanRpm">-- %</span>
+          <span id="gpuFanVal" class="text-xs font-mono font-medium text-white">-- %</span>
         </div>
-        <div class="text-center">
-          <span class="text-[10px] text-zinc-400 block">Статус</span>
-          <span class="text-xs font-mono font-medium text-appleRed flex items-center justify-center" id="agentStatusBadge">
-            <span class="w-1.5 h-1.5 rounded-full bg-appleRed inline-block mr-1"></span>Оффлайн
-          </span>
+        <div>
+          <span class="text-[10px] text-zinc-400 block">Статус ПК</span>
+          <span id="pcOnlineBadge" class="text-xs font-mono font-medium text-appleRed">Оффлайн</span>
         </div>
       </div>
     </section>
 
-    <!-- Шкалы CPU / GPU / RAM -->
+    <!-- ТЕЛЕМЕТРИЯ: CPU / GPU / RAM -->
     <div class="grid grid-cols-3 gap-2.5 mb-4">
-      <div class="liquid-glass rounded-2xl p-3 flex flex-col items-center justify-between text-center">
+      <div class="liquid-glass rounded-2xl p-3 flex flex-col items-center">
         <span class="text-[11px] font-medium text-zinc-400">CPU</span>
         <div class="relative w-16 h-16 my-1.5 flex items-center justify-center">
-          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
             <path class="text-white/10" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path id="cpuCircle" class="text-blue-500 transition-all duration-700 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path id="cpuRing" class="text-appleBlue transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
           </svg>
-          <span id="cpuPercent" class="absolute text-xs font-semibold font-mono text-white">0%</span>
+          <span id="cpuText" class="absolute text-xs font-semibold font-mono text-white">0%</span>
         </div>
-        <span class="text-[10px] font-mono text-zinc-400">14 Cores</span>
+        <span class="text-[10px] font-mono text-zinc-400">13600KF</span>
       </div>
 
-      <div class="liquid-glass rounded-2xl p-3 flex flex-col items-center justify-between text-center">
+      <div class="liquid-glass rounded-2xl p-3 flex flex-col items-center">
         <span class="text-[11px] font-medium text-zinc-400">GPU</span>
         <div class="relative w-16 h-16 my-1.5 flex items-center justify-center">
-          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
             <path class="text-white/10" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path id="gpuCircle" class="text-emerald-400 transition-all duration-700 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path id="gpuRing" class="text-emerald-400 transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
           </svg>
-          <span id="gpuPercent" class="absolute text-xs font-semibold font-mono text-white">0%</span>
+          <span id="gpuText" class="absolute text-xs font-semibold font-mono text-white">0%</span>
         </div>
-        <span id="gpuTemp" class="text-[10px] font-mono text-zinc-400">0°C</span>
+        <span id="gpuTempText" class="text-[10px] font-mono text-zinc-400">0°C</span>
       </div>
 
-      <div class="liquid-glass rounded-2xl p-3 flex flex-col items-center justify-between text-center">
+      <div class="liquid-glass rounded-2xl p-3 flex flex-col items-center">
         <span class="text-[11px] font-medium text-zinc-400">RAM</span>
         <div class="relative w-16 h-16 my-1.5 flex items-center justify-center">
-          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
             <path class="text-white/10" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path id="ramCircle" class="text-purple-400 transition-all duration-700 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path id="ramRing" class="text-purple-400 transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
           </svg>
-          <span id="ramPercent" class="absolute text-xs font-semibold font-mono text-white">0%</span>
+          <span id="ramText" class="absolute text-xs font-semibold font-mono text-white">0%</span>
         </div>
-        <span id="ramUsage" class="text-[10px] font-mono text-zinc-400">0 / 32G</span>
+        <span id="ramSubText" class="text-[10px] font-mono text-zinc-400">0 / 32G</span>
       </div>
     </div>
 
-    <!-- Управление питанием -->
+    <!-- ПИТАНИЕ И WAKE-ON-LAN -->
     <section class="mb-4">
       <div class="flex items-center justify-between mb-2 px-1">
-        <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wide">Питание</h3>
-        <span class="text-[10px] font-mono text-zinc-400">Windows OS</span>
+        <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Питание и Пробуждение</h3>
+        <button onclick="openWolSettingsModal()" class="text-[10px] font-mono text-appleBlue hover:underline">Настроить WoL</button>
       </div>
 
-      <div class="grid grid-cols-3 gap-2">
-        <button onclick="requestAction('sleep', 'Спящий режим', 'Перевести ПК в режим сна?')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center justify-center text-center press-spring">
-          <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-amber-400 mb-1">
+      <div class="grid grid-cols-4 gap-2">
+        <!-- Включить ПК (Wake-on-LAN) -->
+        <button onclick="handleWakeOnLanClick()" class="liquid-glass rounded-2xl p-2.5 flex flex-col items-center justify-center interactive-card border-emerald-500/20">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 mb-1.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          </div>
+          <span class="text-[11px] font-medium text-emerald-400">Включить</span>
+        </button>
+
+        <!-- Сон -->
+        <button onclick="openPowerConfirm('sleep', 'Спящий режим', 'Перевести компьютер в спящий режим?')" class="liquid-glass rounded-2xl p-2.5 flex flex-col items-center justify-center interactive-card">
+          <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-amber-400 mb-1.5">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
           </div>
-          <span class="text-[11px] font-medium text-zinc-300">Сон</span>
+          <span class="text-[11px] font-medium text-zinc-200">Сон</span>
         </button>
 
-        <button onclick="requestAction('restart', 'Перезагрузка', 'Перезагрузить компьютер сейчас?')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center justify-center text-center press-spring">
-          <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-sky-400 mb-1">
+        <!-- Рестарт -->
+        <button onclick="openPowerConfirm('restart', 'Перезагрузка', 'Перезагрузить Windows 11 сейчас?')" class="liquid-glass rounded-2xl p-2.5 flex flex-col items-center justify-center interactive-card">
+          <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-sky-400 mb-1.5">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           </div>
-          <span class="text-[11px] font-medium text-zinc-300">Рестарт</span>
+          <span class="text-[11px] font-medium text-zinc-200">Рестарт</span>
         </button>
 
-        <button onclick="requestAction('shutdown', 'Выключение', 'Завершить работу и выключить ПК?')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center justify-center text-center press-spring border-red-500/20">
-          <div class="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center text-appleRed mb-1">
+        <!-- Выключить -->
+        <button onclick="openPowerConfirm('shutdown', 'Выключение ПК', 'Завершить все процессы и полностью выключить ПК?')" class="liquid-glass rounded-2xl p-2.5 flex flex-col items-center justify-center interactive-card border-red-500/20">
+          <div class="w-8 h-8 rounded-xl bg-red-500/15 flex items-center justify-center text-appleRed mb-1.5">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072m-3.536-10.607v6" /></svg>
           </div>
-          <span class="text-[11px] font-medium text-appleRed">Выключить</span>
+          <span class="text-[11px] font-medium text-appleRed">Выкл</span>
         </button>
       </div>
     </section>
 
-    <!-- Приложения с двухрежимным управлением (Запуск/Закрытие) -->
+    <!-- ВЫДЕЛЕННЫЙ МОДУЛЬ HAPP VPN -->
     <section class="mb-4">
-      <div class="flex items-center justify-between mb-2 px-1">
-        <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wide">Приложения & Сервисы</h3>
-        <span class="text-[10px] text-zinc-500">Нажмите для управления</span>
-      </div>
-
-      <div class="grid grid-cols-3 gap-2.5">
-        <!-- Steam -->
-        <div id="card-steam" onclick="handleAppClick('steam', 'Steam', 'launch_steam', 'kill_steam')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center press-spring cursor-pointer">
-          <div class="w-10 h-10 rounded-xl bg-[#171a21]/80 border border-white/10 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.077 2.911c0 .052.005.105.005.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 14.819C1.947 20.057 6.748 24 12.021 24c6.627 0 12-5.373 12-12S18.605 0 11.979 0z"/></svg>
-          </div>
-          <span class="text-xs font-medium text-white">Steam</span>
-          <span id="status-steam" class="mt-1 text-[10px] font-mono text-zinc-500">Выключен</span>
-        </div>
-
-        <!-- Discord -->
-        <div id="card-discord" onclick="handleAppClick('discord', 'Discord', 'launch_discord', 'kill_discord')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center press-spring cursor-pointer">
-          <div class="w-10 h-10 rounded-xl bg-[#5865F2]/20 border border-[#5865F2]/30 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-          </div>
-          <span class="text-xs font-medium text-white">Discord</span>
-          <span id="status-discord" class="mt-1 text-[10px] font-mono text-zinc-500">Выключен</span>
-        </div>
-
-        <!-- Chrome -->
-        <div id="card-chrome" onclick="handleAppClick('chrome', 'Chrome', 'launch_chrome', 'kill_chrome')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center press-spring cursor-pointer">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.73C20.678 2.611 16.643 0 12 0zm1.789 13.091L8.257 3.518C3.5 4.964.075 9.387 0 14.654l5.342 3.084a5.454 5.454 0 0 1 8.447-4.647zm-1.08 4.364l-5.34 3.083C9.07 22.868 10.495 24 12 24c6.627 0 12-5.373 12-12 0-.825-.084-1.63-.243-2.409H12.71a5.454 5.454 0 0 1 0 7.864z"/></svg>
-          </div>
-          <span class="text-xs font-medium text-white">Chrome</span>
-          <span id="status-chrome" class="mt-1 text-[10px] font-mono text-zinc-500">Выключен</span>
-        </div>
-
-        <!-- HAPP MODULE (Открывает расширенное окно) -->
-        <div onclick="openHappModal()" id="card-happ" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center press-spring cursor-pointer border-indigo-500/30">
-          <div id="happIconBox" class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" d="M12 2v10M18.36 6.64a9 9 0 1 1-12.73 0"/>
+      <div onclick="openHappDrawer()" class="liquid-glass rounded-2xl p-3.5 flex items-center justify-between interactive-card cursor-pointer border-indigo-500/25">
+        <div class="flex items-center space-x-3">
+          <div id="happMainIcon" class="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 transition-all">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <span class="text-xs font-medium text-white">Happ</span>
-          <span id="status-happ" class="mt-1 text-[10px] font-mono text-zinc-500 flex items-center">
-            <span class="w-1.5 h-1.5 rounded-full bg-zinc-600 mr-1"></span>Модуль
-          </span>
-        </div>
-
-        <!-- Telegram Desktop -->
-        <div id="card-telegram" onclick="handleAppClick('telegram', 'Telegram', 'launch_telegram', 'kill_telegram')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center press-spring cursor-pointer">
-          <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.87 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.536-.196 1.006.128.824.966z"/></svg>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h4 class="text-xs font-semibold text-white">Happ Control Module</h4>
+              <span id="happVpnPill" class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/10">VPN: ВЫКЛ</span>
+            </div>
+            <p id="happMainSub" class="text-[11px] font-mono text-zinc-400 mt-0.5">C:\Program Files\FlyFrogLLC\Happ\Happ.exe</p>
           </div>
-          <span class="text-xs font-medium text-white">Telegram</span>
-          <span id="status-telegram" class="mt-1 text-[10px] font-mono text-zinc-500">Выключен</span>
         </div>
-
-        <!-- Терминал PowerShell -->
-        <div onclick="openConsoleModal()" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center press-spring cursor-pointer border-white/20">
-          <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-white/20 flex items-center justify-center mb-2">
-            <svg class="w-5 h-5 text-zinc-300 font-mono" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-          </div>
-          <span class="text-xs font-medium text-white">Терминал</span>
-          <span class="mt-1 text-[10px] font-mono text-sky-400">PowerShell</span>
+        <div class="flex items-center space-x-2">
+          <span id="happProcBadge" class="text-[10px] font-mono text-zinc-400">Остановлен</span>
+          <svg class="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
         </div>
       </div>
     </section>
 
-    <!-- Звук и Мультимедиа -->
+    <!-- ПОЛНОЦЕННАЯ СИСТЕМА УПРАВЛЕНИЯ ПРИЛОЖЕНИЯМИ -->
+    <section class="mb-4">
+      <div class="flex items-center justify-between mb-2 px-1">
+        <div>
+          <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Приложения и Сервисы</h3>
+        </div>
+        <button onclick="openAddAppDrawer()" class="px-2.5 py-1 rounded-lg liquid-glass-subtle text-[11px] font-medium text-appleBlue hover:text-white interactive-card flex items-center space-x-1">
+          <span>+ Добавить</span>
+        </button>
+      </div>
+
+      <div id="appsGrid" class="grid grid-cols-3 gap-2.5">
+        <!-- Карточки приложений рендерятся динамически из бэкенда -->
+      </div>
+    </section>
+
+    <!-- РАЗДЕЛ 5: СИСТЕМНЫЙ ЗВУК WINDOWS 11 (ОТДЕЛЬНО ОТ ПЛЕЕРА) -->
     <section class="liquid-glass rounded-2xl p-4 mb-4">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-            <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-          </div>
+          <button id="muteBtn" onclick="toggleSystemMute()" class="w-9 h-9 rounded-xl bg-appleBlue/15 border border-appleBlue/30 flex items-center justify-center text-appleBlue interactive-card" title="Вкл/Выкл звук">
+            <svg id="volSvgIcon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+          </button>
           <div>
-            <p class="text-xs font-medium text-white">Управление звуком</p>
-            <p class="text-[10px] text-zinc-400 font-mono">Realtek Audio Master</p>
+            <h3 class="text-xs font-semibold text-white">Системный звук Windows</h3>
+            <p id="currentAudioDevLabel" class="text-[10px] font-mono text-zinc-400 truncate max-w-[175px]">Определение аудиовыхода...</p>
           </div>
         </div>
 
-        <div class="flex items-center space-x-1">
-          <button onclick="sendAction('media_prev')" class="w-7 h-7 rounded-full liquid-glass-subtle flex items-center justify-center text-zinc-300 press-spring">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-          </button>
-          <button onclick="sendAction('media_play_pause')" class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center press-spring font-bold">
-            <svg class="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </button>
-          <button onclick="sendAction('media_next')" class="w-7 h-7 rounded-full liquid-glass-subtle flex items-center justify-center text-zinc-300 press-spring">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="flex items-center space-x-3 pt-1">
-        <button onclick="sendAction('mute_toggle')" class="text-zinc-400 hover:text-white press-spring">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+        <!-- Кнопка вызова списка аудиоустройств как в Windows 11 -->
+        <button onclick="openAudioDevicesDrawer()" class="px-2.5 py-1.5 rounded-xl liquid-glass-subtle text-[11px] font-medium text-zinc-200 hover:text-white interactive-card flex items-center space-x-1.5 border border-white/10">
+          <span>Выход</span>
+          <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
         </button>
-        <input type="range" id="volumeRange" min="0" max="100" value="50" onchange="commitVolume(this.value)" oninput="updateVolumeLabel(this.value)" class="w-full">
-        <span id="volumeVal" class="text-xs font-mono text-zinc-300 w-8 text-right">50%</span>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <input type="range" id="sysVolumeSlider" min="0" max="100" value="50"
+               oninput="onVolumeSlide(this.value)"
+               onchange="commitSystemVolume(this.value)"
+               class="volume-slider w-full">
+        <span id="sysVolumeText" class="text-xs font-mono font-semibold text-white w-9 text-right">50%</span>
       </div>
     </section>
 
-    <!-- Скриншот и Окна -->
-    <section class="grid grid-cols-2 gap-2.5 mb-6">
-      <button onclick="takeLiveScreenshot()" class="liquid-glass rounded-2xl p-3 flex items-center space-x-3 text-left press-spring">
-        <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    <!-- РАЗДЕЛ 6: МУЗЫКАЛЬНЫЙ ПЛЕЕР ЯНДЕКС МУЗЫКИ (НЕЗАВИСИМЫЙ БЛОК) -->
+    <section class="liquid-glass rounded-2xl p-4 mb-4 relative overflow-hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-[#FFCC00]"></span>
+          <span class="text-[10px] font-mono uppercase tracking-wider text-zinc-300 font-semibold">Яндекс Музыка</span>
+          <div id="ymEqIndicator" class="hidden items-end space-x-0.5 h-3.5 ml-1">
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+          </div>
         </div>
-        <div>
-          <span class="text-xs font-medium text-white block">Скриншот</span>
-          <span class="text-[10px] text-zinc-400 font-mono">Live Grab</span>
+
+        <button id="ymLaunchBtn" onclick="sendMusicCmd('launch')" class="px-2.5 py-1 rounded-lg bg-[#FFCC00]/15 border border-[#FFCC00]/30 text-[10px] font-medium text-[#FFCC00] interactive-card">
+          Запустить плеер
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between space-x-3">
+        <!-- Обложка и название композиции -->
+        <div class="flex items-center space-x-3 min-w-0 flex-1">
+          <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 shrink-0 overflow-hidden flex items-center justify-center relative">
+            <img id="ymCoverImg" src="" alt="Cover" class="w-full h-full object-cover hidden">
+            <svg id="ymDefaultIcon" class="w-5 h-5 text-[#FFCC00]" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </svg>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p id="ymTrackTitle" class="text-xs font-semibold text-white truncate">Плеер не активен</p>
+            <p id="ymTrackArtist" class="text-[11px] text-zinc-400 truncate mt-0.5">Нажмите «Запустить плеер»</p>
+            <span id="ymStateSub" class="text-[9px] font-mono text-zinc-500 block mt-0.5">Ожидание сессии</span>
+          </div>
         </div>
+
+        <!-- Кнопки управления воспроизведением -->
+        <div class="flex items-center space-x-1.5 shrink-0">
+          <button onclick="sendMusicCmd('prev')" class="w-8 h-8 rounded-full liquid-glass-subtle flex items-center justify-center text-zinc-200 hover:text-white interactive-card" title="Предыдущий трек">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button id="ymPlayPauseBtn" onclick="sendMusicCmd('play_pause')" class="w-10 h-10 rounded-full bg-[#FFCC00] text-black flex items-center justify-center interactive-card shadow-lg shadow-amber-500/20" title="Воспроизведение / Пауза">
+            <svg id="ymPlaySvg" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button onclick="sendMusicCmd('next')" class="w-8 h-8 rounded-full liquid-glass-subtle flex items-center justify-center text-zinc-200 hover:text-white interactive-card" title="Следующий трек">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- БЫСТРЫЕ ИНСТРУМЕНТЫ (СКРИНШОТ, СВЕРНУТЬ ВСЕ, БЛОКИРОВКА) -->
+    <section class="grid grid-cols-3 gap-2 mb-6">
+      <button onclick="openScreenshotDrawer()" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center interactive-card">
+        <svg class="w-4 h-4 text-purple-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>
+        <span class="text-[11px] font-medium text-white">Скриншот</span>
       </button>
 
-      <button onclick="sendAction('minimize_all')" class="liquid-glass rounded-2xl p-3 flex items-center space-x-3 text-left press-spring">
-        <div class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-        </div>
-        <div>
-          <span class="text-xs font-medium text-white block">Свернуть окна</span>
-          <span class="text-[10px] text-zinc-400 font-mono">Win + D</span>
-        </div>
+      <button onclick="triggerPowerAction('minimize_all')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center interactive-card">
+        <svg class="w-4 h-4 text-sky-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+        <span class="text-[11px] font-medium text-white">Свернуть все</span>
+      </button>
+
+      <button onclick="openPowerConfirm('lock', 'Блокировка экрана', 'Заблокировать рабочую станцию Windows (Win+L)?')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center interactive-card">
+        <svg class="w-4 h-4 text-amber-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+        <span class="text-[11px] font-medium text-white">Win + L</span>
       </button>
     </section>
 
-    <!-- Подпись smash в стиле Minecraft Rus -->
-    <footer class="mt-auto text-center pt-2 pb-1 space-y-2">
+    <footer class="mt-auto text-center pt-2">
       <div class="flex items-center justify-center space-x-1.5 text-zinc-400">
-        <span class="w-1 h-1 bg-amber-400 rounded-none inline-block shadow-[0_0_6px_rgba(251,191,36,0.8)]"></span>
+        <span class="w-1 h-1 bg-amber-400 inline-block"></span>
         <span class="font-minecraft-tag text-[8px] tracking-widest text-zinc-400">
-          AETHER OS // <span class="text-zinc-200 text-[9px]">by smash</span>
+          AETHER OS // <span class="text-zinc-200">by smash</span>
         </span>
-        <span class="w-1 h-1 bg-amber-400 rounded-none inline-block shadow-[0_0_6px_rgba(251,191,36,0.8)]"></span>
+        <span class="w-1 h-1 bg-amber-400 inline-block"></span>
       </div>
     </footer>
   </main>
 
-  <!-- ================= МОДАЛЬНЫЕ ОКНА ================= -->
+  <!-- ================= МОДАЛЬНЫЕ ШТОРКИ С БЛОКИРОВКОЙ ПРОКРУТКИ ================= -->
 
-  <!-- 1. РАСШИРЕННЫЙ ЦЕНТР УПРАВЛЕНИЯ HAPP -->
-  <div id="happModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-end justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-4">
-    <div id="happSheet" class="w-full max-w-sm liquid-glass rounded-3xl p-5 border border-indigo-500/30 transform translate-y-full transition-transform duration-300">
+  <!-- 1. ПАНЕЛЬ ДЕЙСТВИЙ КОНКРЕТНОГО ПРИЛОЖЕНИЯ -->
+  <div id="drawerAppManage" class="modal-backdrop flex items-end justify-center p-3" onclick="if(event.target===this) closeDrawer('drawerAppManage')">
+    <div class="modal-sheet w-full max-w-md liquid-glass rounded-3xl p-5 border border-white/15 overflow-y-auto">
       <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-      
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 2v10M18.36 6.64a9 9 0 1 1-12.73 0"/></svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-semibold text-white">Happ Control Hub</h3>
-            <p id="happModalStatus" class="text-[10px] font-mono text-zinc-400">Процесс: Проверка...</p>
-          </div>
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 id="manageAppTitle" class="text-sm font-semibold text-white">Управление приложением</h3>
+          <p id="manageAppPath" class="text-[10px] font-mono text-zinc-400 break-all mt-0.5">--</p>
         </div>
-        <span id="happVpnBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400">VPN: --</span>
+        <span id="manageAppBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300">--</span>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 mb-3">
-        <!-- Запуск / Закрытие приложения -->
-        <button onclick="sendAction('happ_open'); showToast('Запуск Happ...');" class="py-3 px-3 rounded-2xl liquid-glass border-emerald-500/20 hover:border-emerald-500/40 text-left press-spring">
-          <span class="text-xs font-semibold text-emerald-400 block">▶ Открыть Happ</span>
-          <span class="text-[9px] font-mono text-zinc-400">Запуск программы</span>
+      <div class="grid grid-cols-2 gap-2 my-3">
+        <button onclick="execSelectedAppAction('start')" class="p-3 rounded-2xl liquid-glass border-emerald-500/25 text-left interactive-card">
+          <span class="text-xs font-semibold text-emerald-400 block">▶ Запустить</span>
+          <span class="text-[10px] text-zinc-400">Открыть / Развернуть</span>
         </button>
 
-        <button onclick="sendAction('happ_close'); showToast('Завершение Happ...');" class="py-3 px-3 rounded-2xl liquid-glass border-red-500/20 hover:border-red-500/40 text-left press-spring">
-          <span class="text-xs font-semibold text-appleRed block">■ Закрыть Happ</span>
-          <span class="text-[9px] font-mono text-zinc-400">Завершить процесс</span>
+        <button onclick="execSelectedAppAction('stop')" class="p-3 rounded-2xl liquid-glass border-red-500/25 text-left interactive-card">
+          <span class="text-xs font-semibold text-appleRed block">■ Остановить</span>
+          <span class="text-[10px] text-zinc-400">Завершить процесс</span>
         </button>
 
-        <!-- Включение / Выключение VPN -->
-        <button onclick="sendAction('vpn_enable'); showToast('Включение VPN/Прокси...');" class="py-3 px-3 rounded-2xl liquid-glass border-indigo-500/20 hover:border-indigo-500/40 text-left press-spring">
-          <span class="text-xs font-semibold text-indigo-400 block">🛡️ Включить VPN</span>
-          <span class="text-[9px] font-mono text-zinc-400">Системный шлюз</span>
+        <button onclick="execSelectedAppAction('restart')" class="p-3 rounded-2xl liquid-glass text-left interactive-card">
+          <span class="text-xs font-semibold text-sky-400 block">↻ Перезапустить</span>
+          <span class="text-[10px] text-zinc-400">Перезапуск процесса</span>
         </button>
 
-        <button onclick="sendAction('vpn_disable'); showToast('Отключение VPN/Прокси...');" class="py-3 px-3 rounded-2xl liquid-glass border-white/10 text-left press-spring">
-          <span class="text-xs font-semibold text-zinc-300 block">⚡ Выключить VPN</span>
-          <span class="text-[9px] font-mono text-zinc-400">Прямой доступ</span>
+        <button onclick="execSelectedAppAction('minimize')" class="p-3 rounded-2xl liquid-glass text-left interactive-card">
+          <span class="text-xs font-semibold text-amber-400 block">_ Свернуть окно</span>
+          <span class="text-[10px] text-zinc-400">Минимизировать в панель</span>
+        </button>
+
+        <button onclick="execSelectedAppAction('open_location')" class="p-3 rounded-2xl liquid-glass text-left interactive-card">
+          <span class="text-xs font-semibold text-zinc-200 block">📂 Расположение</span>
+          <span class="text-[10px] text-zinc-400">Показать в Проводнике</span>
+        </button>
+
+        <button onclick="execSelectedAppAction('remove')" class="p-3 rounded-2xl liquid-glass border-white/10 text-left interactive-card">
+          <span class="text-xs font-semibold text-zinc-400 block">✕ Убрать из панели</span>
+          <span class="text-[10px] text-zinc-500">Только из AETHER</span>
         </button>
       </div>
 
-      <button onclick="closeHappModal()" class="w-full py-2.5 rounded-xl text-xs font-medium text-zinc-400 liquid-glass-subtle press-spring">
-        Закрыть окно
+      <button onclick="closeDrawer('drawerAppManage')" class="w-full py-2.5 rounded-xl text-xs font-medium text-zinc-300 liquid-glass-subtle interactive-card">
+        Закрыть
       </button>
     </div>
   </div>
 
-  <!-- 2. МОДАЛКА УПРАВЛЕНИЯ ПРИЛОЖЕНИЕМ (STEAM / DISCORD И Т.Д.) -->
-  <div id="appActionModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-end justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-4">
-    <div id="appActionSheet" class="w-full max-w-sm liquid-glass rounded-3xl p-5 border border-white/15 transform translate-y-full transition-transform duration-300">
+  <!-- 2. ПАНЕЛЬ ДОБАВЛЕНИЯ НОВОГО ПРИЛОЖЕНИЯ -->
+  <div id="drawerAddApp" class="modal-backdrop flex items-end justify-center p-3" onclick="if(event.target===this) closeDrawer('drawerAddApp')">
+    <div class="modal-sheet w-full max-w-md liquid-glass rounded-3xl p-5 border border-white/15 overflow-y-auto">
       <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-      <div class="text-center mb-4">
-        <h3 id="appActionTitle" class="text-sm font-semibold text-white">Приложение</h3>
-        <p id="appActionDesc" class="text-xs text-zinc-400 mt-1">Выберите необходимое действие:</p>
-      </div>
-      <div class="space-y-2">
-        <button id="appActionLaunchBtn" class="w-full py-3 rounded-2xl text-xs font-semibold text-white bg-emerald-600/80 hover:bg-emerald-600 press-spring">Запустить</button>
-        <button id="appActionKillBtn" class="w-full py-3 rounded-2xl text-xs font-semibold text-white bg-red-600/80 hover:bg-red-600 press-spring">Завершить процесс (Закрыть)</button>
-        <button onclick="closeAppModal()" class="w-full py-2.5 rounded-2xl text-xs font-medium text-zinc-400 liquid-glass-subtle press-spring">Отмена</button>
-      </div>
-    </div>
-  </div>
+      <h3 class="text-sm font-semibold text-white mb-1">Добавить приложение в панель</h3>
+      <p class="text-[11px] text-zinc-400 mb-4">Укажите название и полный путь к исполняемому файлу (.exe) в Windows.</p>
 
-  <!-- 3. ACTION SHEET ПОДТВЕРЖДЕНИЯ (ПИТАНИЕ) -->
-  <div id="actionModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-end justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-4">
-    <div id="actionSheet" class="w-full max-w-sm liquid-glass rounded-3xl p-5 border border-white/15 transform translate-y-full transition-transform duration-300">
-      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-      <div class="text-center mb-5">
-        <h3 id="modalTitle" class="text-base font-semibold text-white">Подтверждение</h3>
-        <p id="modalDesc" class="text-xs text-zinc-400 mt-1">Вы уверены?</p>
-      </div>
-      <div class="space-y-2">
-        <button id="modalConfirmBtn" class="w-full py-3 rounded-2xl text-xs font-semibold text-white bg-red-500 hover:bg-red-600 press-spring">Подтвердить</button>
-        <button onclick="closeModal()" class="w-full py-3 rounded-2xl text-xs font-medium text-zinc-300 liquid-glass-subtle press-spring">Отмена</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 4. POWERSHELL ТЕРМИНАЛ -->
-  <div id="terminalModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
-    <div class="w-full max-w-md liquid-glass rounded-3xl p-4 border border-white/15 shadow-2xl flex flex-col h-[460px]">
-      <div class="flex items-center justify-between pb-3 border-b border-white/10">
-        <span class="text-xs font-mono text-zinc-300">powershell.exe // Remote</span>
-        <button onclick="closeTerminalModal()" class="text-zinc-400 hover:text-white text-xs font-mono press-spring">✕</button>
-      </div>
-      <div id="terminalOutput" class="flex-1 my-3 font-mono text-xs text-zinc-300 overflow-y-auto space-y-1 pr-1 select-text">
-        <div class="text-zinc-500">[Aether Core PowerShell Terminal]</div>
-        <div class="text-emerald-400">Введите команду для выполнения на ПК...</div>
-      </div>
-      <form onsubmit="executeCmd(event)" class="relative flex items-center pt-2 border-t border-white/10">
-        <span class="text-emerald-400 font-mono text-xs mr-2 font-bold">&gt;</span>
-        <input type="text" id="cmdInput" placeholder="Get-Process, tasklist и т.д." class="w-full bg-transparent font-mono text-xs text-white placeholder-zinc-600 focus:outline-none">
-        <button type="submit" class="px-3 py-1 rounded-xl bg-white/10 text-[11px] font-mono text-white press-spring ml-2">Run</button>
+      <form onsubmit="submitAddApp(event)" class="space-y-3">
+        <div>
+          <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">Название</label>
+          <input id="addAppName" type="text" required placeholder="Например: OBS Studio" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-appleBlue select-text">
+        </div>
+        <div>
+          <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">Полный путь к .exe</label>
+          <input id="addAppPath" type="text" required placeholder="C:\Program Files\obs-studio\bin\64bit\obs64.exe" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-appleBlue select-text">
+        </div>
+        <div>
+          <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">Имя процесса (необязательно)</label>
+          <input id="addAppProc" type="text" placeholder="Автоматически из пути (например: obs64.exe)" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white focus:outline-none focus:border-appleBlue select-text">
+        </div>
+        <div class="pt-2 flex space-x-2">
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-appleBlue text-white text-xs font-semibold interactive-card">Добавить</button>
+          <button type="button" onclick="closeDrawer('drawerAddApp')" class="flex-1 py-2.5 rounded-xl liquid-glass-subtle text-xs text-zinc-300 interactive-card">Отмена</button>
+        </div>
       </form>
     </div>
   </div>
 
-  <!-- 5. СКРИНШОТ -->
-  <div id="screenshotModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex flex-col items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
-    <div class="w-full max-w-md liquid-glass rounded-3xl p-4 border border-white/15 shadow-2xl flex flex-col">
+  <!-- 3. ПАНЕЛЬ УПРАВЛЕНИЯ HAPP VPN -->
+  <div id="drawerHapp" class="modal-backdrop flex items-end justify-center p-3" onclick="if(event.target===this) closeDrawer('drawerHapp')">
+    <div class="modal-sheet w-full max-w-md liquid-glass rounded-3xl p-5 border border-indigo-500/30 overflow-y-auto">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Happ Control Hub</h3>
+          <p id="happDrawerFileCheck" class="text-[10px] font-mono text-emerald-400 mt-0.5">Проверка пути...</p>
+        </div>
+        <span id="happDrawerStatusBadge" class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/10 text-zinc-300">--</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 mb-4">
+        <button onclick="sendHappAction('start')" class="p-3 rounded-2xl liquid-glass border-emerald-500/25 text-left interactive-card">
+          <span class="text-xs font-semibold text-emerald-400 block">▶ Запустить Happ</span>
+          <span class="text-[10px] text-zinc-400">Без дублей процесса</span>
+        </button>
+
+        <button onclick="sendHappAction('stop')" class="p-3 rounded-2xl liquid-glass border-red-500/25 text-left interactive-card">
+          <span class="text-xs font-semibold text-appleRed block">■ Остановить Happ</span>
+          <span class="text-[10px] text-zinc-400">Закрыть приложение</span>
+        </button>
+
+        <button onclick="sendHappAction('vpn_on')" class="p-3 rounded-2xl liquid-glass border-indigo-500/25 text-left interactive-card">
+          <span class="text-xs font-semibold text-indigo-400 block">🛡️ Включить VPN</span>
+          <span class="text-[10px] text-zinc-400">Системный прокси Вкл</span>
+        </button>
+
+        <button onclick="sendHappAction('vpn_off')" class="p-3 rounded-2xl liquid-glass text-left interactive-card">
+          <span class="text-xs font-semibold text-zinc-200 block">⚡ Выключить VPN</span>
+          <span class="text-[10px] text-zinc-400">Системный прокси Выкл</span>
+        </button>
+      </div>
+
+      <!-- Настройка пути к Happ -->
+      <div class="pt-3 border-t border-white/10 mb-3">
+        <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">Путь к исполняемому файлу Happ.exe</label>
+        <div class="flex space-x-2">
+          <input id="happPathInput" type="text" value="C:\Program Files\FlyFrogLLC\Happ\Happ.exe" class="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-[11px] font-mono text-white select-text focus:outline-none focus:border-indigo-400">
+          <button onclick="saveHappPath()" class="px-3 py-2 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-xs font-medium text-indigo-300 interactive-card">Сохранить</button>
+        </div>
+      </div>
+
+      <button onclick="closeDrawer('drawerHapp')" class="w-full py-2.5 rounded-xl text-xs font-medium text-zinc-300 liquid-glass-subtle interactive-card">
+        Закрыть
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. ПАНЕЛЬ ВЫБОРА АУДИОВЫХОДА WINDOWS 11 -->
+  <div id="drawerAudioDevices" class="modal-backdrop flex items-end justify-center p-3" onclick="if(event.target===this) closeDrawer('drawerAudioDevices')">
+    <div class="modal-sheet w-full max-w-md liquid-glass rounded-3xl p-5 border border-white/15 overflow-y-auto">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Выбор устройства вывода</h3>
+          <p class="text-[11px] text-zinc-400">Windows 11 Core Audio API</p>
+        </div>
+        <button onclick="pollStatus(true)" class="text-[11px] font-mono text-appleBlue">Обновить</button>
+      </div>
+
+      <div id="audioDevicesList" class="space-y-2 my-3 max-h-[50vh] overflow-y-auto pr-1">
+        <!-- Список реальных аудиовыходов формируется динамически -->
+      </div>
+
+      <button onclick="closeDrawer('drawerAudioDevices')" class="w-full py-2.5 rounded-xl text-xs font-medium text-zinc-300 liquid-glass-subtle interactive-card">
+        Готово
+      </button>
+    </div>
+  </div>
+
+  <!-- 5. НАСТРОЙКА И ОТПРАВКА WAKE-ON-LAN -->
+  <div id="drawerWol" class="modal-backdrop flex items-end justify-center p-3" onclick="if(event.target===this) closeDrawer('drawerWol')">
+    <div class="modal-sheet w-full max-w-md liquid-glass rounded-3xl p-5 border border-white/15 overflow-y-auto">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+      <h3 class="text-sm font-semibold text-white mb-1">Wake-on-LAN (Включение ПК)</h3>
+      <p class="text-[11px] text-zinc-400 mb-3">Отправка широковещательного Magic Packet на сетевую карту компьютера. Требуется включённый параметр Wake on Magic Packet в BIOS и свойствах адаптера.</p>
+
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">MAC-адрес сетевого адаптера</label>
+          <input id="wolMacInput" type="text" placeholder="XX:XX:XX:XX:XX:XX" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white select-text">
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2">
+            <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">Broadcast IP</label>
+            <input id="wolIpInput" type="text" value="255.255.255.255" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white select-text">
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase text-zinc-400 block mb-1">UDP Порт</label>
+            <input id="wolPortInput" type="number" value="9" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white select-text">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex space-x-2">
+        <button onclick="sendWolPacket()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-black text-xs font-semibold interactive-card">Отправить Magic Packet</button>
+        <button onclick="closeDrawer('drawerWol')" class="py-2.5 px-4 rounded-xl liquid-glass-subtle text-xs text-zinc-300 interactive-card">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. ПОДТВЕРЖДЕНИЕ КОМАНДЫ ПИТАНИЯ -->
+  <div id="drawerPowerConfirm" class="modal-backdrop flex items-end justify-center p-3" onclick="if(event.target===this) closeDrawer('drawerPowerConfirm')">
+    <div class="modal-sheet w-full max-w-sm liquid-glass rounded-3xl p-5 border border-white/15">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+      <div class="text-center mb-4">
+        <h3 id="powerConfirmTitle" class="text-sm font-semibold text-white">Подтверждение</h3>
+        <p id="powerConfirmDesc" class="text-xs text-zinc-400 mt-1">Вы уверены?</p>
+      </div>
+      <div class="space-y-2">
+        <button id="powerConfirmActionBtn" class="w-full py-3 rounded-2xl text-xs font-semibold text-white bg-appleRed interactive-card">Подтвердить</button>
+        <button onclick="closeDrawer('drawerPowerConfirm')" class="w-full py-2.5 rounded-2xl text-xs font-medium text-zinc-300 liquid-glass-subtle interactive-card">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. LIVE СКРИНШОТ -->
+  <div id="drawerScreenshot" class="modal-backdrop flex items-center justify-center p-4" onclick="if(event.target===this) closeDrawer('drawerScreenshot')">
+    <div class="modal-sheet w-full max-w-md liquid-glass rounded-3xl p-4 border border-white/15">
       <div class="flex items-center justify-between pb-3">
-        <h4 class="text-xs font-semibold text-white">Экран ПК (Live)</h4>
-        <button onclick="closeScreenshotModal()" class="w-7 h-7 rounded-full liquid-glass flex items-center justify-center text-zinc-400 hover:text-white press-spring">✕</button>
+        <h4 class="text-xs font-semibold text-white">Экран Windows 11 (Live)</h4>
+        <button onclick="closeDrawer('drawerScreenshot')" class="w-7 h-7 rounded-full liquid-glass flex items-center justify-center text-zinc-300">✕</button>
       </div>
-      <div class="w-full h-56 bg-zinc-950 rounded-xl relative overflow-hidden border border-white/10 my-2 flex items-center justify-center">
-        <img id="liveScreenImg" class="w-full h-full object-contain" src="" alt="Live Desktop">
+      <div class="w-full h-56 bg-black/80 rounded-xl overflow-hidden border border-white/10 my-2 flex items-center justify-center">
+        <img id="liveScreenshotImg" class="w-full h-full object-contain" src="" alt="Загрузка снимка...">
       </div>
-      <button onclick="takeLiveScreenshot()" class="mt-2 py-2.5 rounded-xl bg-white text-black text-xs font-semibold press-spring flex items-center justify-center space-x-1.5">
-        Обновить кадр
+      <button onclick="fetchScreenshot()" class="w-full mt-2 py-2.5 rounded-xl bg-white text-black text-xs font-semibold interactive-card">
+        Обновить снимок
       </button>
     </div>
   </div>
@@ -517,386 +698,584 @@
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
 
+    const PC_URL = "https://pursuant-sixth-salami.ngrok-free.dev";
+    const HEADERS = { "ngrok-skip-browser-warning": "true", "Content-Type": "application/json" };
+
+    let lastState = null;
+    let isPcOnline = false;
+    let selectedAppId = null;
+    let lockedScrollY = 0;
+
     function haptic(type = 'light') {
       try {
         if (tg?.HapticFeedback) {
-          if (type === 'error' || type === 'warning' || type === 'success') tg.HapticFeedback.notificationOccurred(type);
+          if (['error', 'warning', 'success'].includes(type)) tg.HapticFeedback.notificationOccurred(type);
           else tg.HapticFeedback.impactOccurred(type);
         }
-      } catch(e) {}
-    }
-
-    const PC_URL = "https://pursuant-sixth-salami.ngrok-free.dev";
-    const HEADERS = { "ngrok-skip-browser-warning": "true" };
-
-    let currentAppsState = {};
-
-    function showToast(text, isError = false) {
-      const toast = document.getElementById('toast');
-      document.getElementById('toastMsg').innerText = text;
-      document.getElementById('toastIcon').className = isError 
-        ? 'w-2 h-2 rounded-full bg-appleRed animate-ping' 
-        : 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-      toast.classList.remove('opacity-0', '-translate-y-6', 'pointer-events-none');
-      setTimeout(() => toast.classList.add('opacity-0', '-translate-y-6', 'pointer-events-none'), 2400);
-    }
-
-    async function fetchStatus(manual = false) {
-      const start = Date.now();
-      try {
-        const res = await fetch(`${PC_URL}/status`, { headers: HEADERS });
-        if (res.ok) {
-          const data = await res.json();
-          const ping = Date.now() - start;
-          document.getElementById('pingValue').innerText = `${ping} ms`;
-          document.getElementById('pingDot').className = 'w-1.5 h-1.5 rounded-full bg-appleGreen';
-          document.getElementById('headerDot').className = 'absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-obsidian';
-          document.getElementById('headerUptime').innerText = 'Online • Win 11 Pro';
-
-          const badge = document.getElementById('agentStatusBadge');
-          badge.className = 'text-xs font-mono font-medium text-emerald-400 flex items-center justify-center';
-          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1"></span>Активен';
-
-          // CPU & GPU
-          document.getElementById('cpuPercent').innerText = `${data.cpu.percent}%`;
-          document.getElementById('cpuCircle').setAttribute('stroke-dasharray', `${data.cpu.percent}, 100`);
-          document.getElementById('gpuPercent').innerText = `${data.gpu.percent}%`;
-          document.getElementById('gpuCircle').setAttribute('stroke-dasharray', `${data.gpu.percent}, 100`);
-          document.getElementById('gpuTemp').innerText = `${data.gpu.temp}°C`;
-          document.getElementById('powerDraw').innerText = `${data.gpu.power} W`;
-          document.getElementById('fanRpm').innerText = `${data.gpu.fan} %`;
-
-          // RAM
-          document.getElementById('ramPercent').innerText = `${data.ram.percent}%`;
-          document.getElementById('ramCircle').setAttribute('stroke-dasharray', `${data.ram.percent}, 100`);
-          document.getElementById('ramUsage').innerText = `${data.ram.used_gb} / ${data.ram.total_gb}G`;
-
-          // Аптайм
-          const hrs = Math.floor(data.uptime / 3600);
-          const mins = Math.floor((data.uptime % 3600) / 60);
-          document.getElementById('uptimeCounter').innerText = `${hrs}ч ${mins}м`;
-
-          // Реальные статусы приложений
-          currentAppsState = data.apps || {};
-          updateAppBadge('steam', currentAppsState.steam);
-          updateAppBadge('discord', currentAppsState.discord);
-          updateAppBadge('chrome', currentAppsState.chrome);
-          updateAppBadge('telegram', currentAppsState.telegram);
-          updateHappBadge(currentAppsState.happ, data.vpn);
-
-          // Звук
-          if (!document.getElementById('volumeRange').matches(':active')) {
-            document.getElementById('volumeRange').value = data.audio.volume;
-            document.getElementById('volumeVal').innerText = `${data.audio.volume}%`;
-          }
-
-          if (manual) showToast(`Синхронизировано • Ping ${ping}ms`);
-        } else {
-          setOffline();
-        }
-      } catch (e) {
-        setOffline();
-      }
-    }
-
-    function updateAppBadge(appKey, isRunning) {
-      const el = document.getElementById(`status-${appKey}`);
-      if (!el) return;
-      if (isRunning) {
-        el.innerText = 'Работает';
-        el.className = 'mt-1 text-[10px] font-mono text-emerald-400 flex items-center justify-center';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>Работает';
-      } else {
-        el.innerText = 'Выключен';
-        el.className = 'mt-1 text-[10px] font-mono text-zinc-500';
-      }
-    }
-
-    function updateHappBadge(isAppRunning, isVpnActive) {
-      const el = document.getElementById('status-happ');
-      if (isAppRunning) {
-        el.className = 'mt-1 text-[10px] font-mono text-indigo-400 flex items-center justify-center';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1 animate-pulse"></span>Активен';
-      } else {
-        el.className = 'mt-1 text-[10px] font-mono text-zinc-500';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-zinc-600 mr-1"></span>Выключен';
-      }
-
-      // Обновление внутри модалки Happ
-      document.getElementById('happModalStatus').innerText = `Процесс: ${isAppRunning ? 'Запущен в системе' : 'Остановлен'}`;
-      const vpnBadge = document.getElementById('happVpnBadge');
-      if (isVpnActive) {
-        vpnBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400';
-        vpnBadge.innerText = 'VPN: ВКЛЮЧЕН';
-      } else {
-        vpnBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400';
-        vpnBadge.innerText = 'VPN: ВЫКЛЮЧЕН';
-      }
-    }
-
-    function setOffline() {
-      document.getElementById('pingValue').innerText = '-- ms';
-      document.getElementById('pingDot').className = 'w-1.5 h-1.5 rounded-full bg-appleRed';
-      document.getElementById('headerDot').className = 'absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-appleRed ring-2 ring-obsidian';
-      document.getElementById('headerUptime').innerText = 'ПК Оффлайн';
-      const badge = document.getElementById('agentStatusBadge');
-      badge.className = 'text-xs font-mono font-medium text-appleRed flex items-center justify-center';
-      badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-appleRed inline-block mr-1"></span>Оффлайн';
-    }
-
-    setInterval(fetchStatus, 2500);
-    fetchStatus();
-
-    async function sendAction(act) {
-      haptic();
-      try {
-        await fetch(`${PC_URL}/action/${act}`, { method: 'POST', headers: HEADERS });
-        setTimeout(fetchStatus, 800);
-      } catch (e) {
-        showToast('Ошибка связи с ПК', true);
-      }
-    }
-
-    // Двухрежимное управление приложениями
-    function handleAppClick(appKey, appTitle, launchCmd, killCmd) {
-      haptic();
-      const isRunning = currentAppsState[appKey];
-      const modal = document.getElementById('appActionModal');
-      const sheet = document.getElementById('appActionSheet');
-      
-      document.getElementById('appActionTitle').innerText = `${appTitle} // Управление`;
-      document.getElementById('appActionDesc').innerText = isRunning ? 'Приложение сейчас запущено на компьютере.' : 'Приложение не активно.';
-      
-      const launchBtn = document.getElementById('appActionLaunchBtn');
-      const killBtn = document.getElementById('appActionKillBtn');
-
-      launchBtn.onclick = () => {
-        sendAction(launchCmd);
-        showToast(`Запуск ${appTitle}...`);
-        closeAppModal();
-      };
-
-      killBtn.onclick = () => {
-        sendAction(killCmd);
-        showToast(`Завершение ${appTitle}...`);
-        closeAppModal();
-      };
-
-      modal.classList.remove('opacity-0', 'pointer-events-none');
-      sheet.classList.remove('translate-y-full');
-    }
-
-    function closeAppModal() {
-      document.getElementById('appActionSheet').classList.add('translate-y-full');
-      document.getElementById('appActionModal').classList.add('opacity-0', 'pointer-events-none');
-    }
-
-    // Модальное окно Happ
-    function openHappModal() {
-      haptic('medium');
-      const modal = document.getElementById('happModal');
-      const sheet = document.getElementById('happSheet');
-      modal.classList.remove('opacity-0', 'pointer-events-none');
-      sheet.classList.remove('translate-y-full');
-    }
-    function closeHappModal() {
-      document.getElementById('happSheet').classList.add('translate-y-full');
-      document.getElementById('happModal').classList.add('opacity-0', 'pointer-events-none');
-    }
-
-    // Подтверждение действий питания
-    let currentPendingAct = null;
-    function requestAction(act, title, desc) {
-      haptic('warning');
-      currentPendingAct = act;
-      document.getElementById('modalTitle').innerText = title;
-      document.getElementById('modalDesc').innerText = desc;
-      document.getElementById('actionModal').classList.remove('opacity-0', 'pointer-events-none');
-      document.getElementById('actionSheet').classList.remove('translate-y-full');
-      document.getElementById('modalConfirmBtn').onclick = () => {
-        sendAction(currentPendingAct);
-        closeModal();
-      };
-    }
-    function closeModal() {
-      document.getElementById('actionSheet').classList.add('translate-y-full');
-      document.getElementById('actionModal').classList.add('opacity-0', 'pointer-events-none');
-    }
-
-    // Звук
-    function updateVolumeLabel(v) { document.getElementById('volumeVal').innerText = `${v}%`; }
-    async function commitVolume(v) {
-      haptic('light');
-      try {
-        await fetch(`${PC_URL}/volume/${v}`, { method: 'POST', headers: HEADERS });
       } catch (e) {}
     }
 
-    // PowerShell Терминал
-    function openConsoleModal() {
-      haptic();
-      document.getElementById('terminalModal').classList.remove('opacity-0', 'pointer-events-none');
-      document.getElementById('cmdInput').focus();
+    let toastTimer = null;
+    function showToast(msg, isErr = false) {
+      const el = document.getElementById('toast');
+      document.getElementById('toastText').innerText = msg;
+      document.getElementById('toastDot').className = isErr
+        ? 'w-2 h-2 rounded-full bg-appleRed shrink-0'
+        : 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+      el.classList.remove('opacity-0', '-translate-y-6', 'pointer-events-none');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.add('opacity-0', '-translate-y-6', 'pointer-events-none');
+      }, 2800);
     }
-    function closeTerminalModal() {
-      document.getElementById('terminalModal').classList.add('opacity-0', 'pointer-events-none');
-    }
-    async function executeCmd(e) {
-      e.preventDefault();
-      const input = document.getElementById('cmdInput');
-      const val = input.value.trim();
-      if (!val) return;
-      haptic('medium');
 
-      const out = document.getElementById('terminalOutput');
-      const line = document.createElement('div');
-      line.className = 'text-white';
-      line.innerHTML = `<span class="text-emerald-400">PS &gt;</span> ${val}`;
-      out.appendChild(line);
-      input.value = '';
+    // ================= БЛОКИРОВКА ПРОКРУТКИ СТРАНИЦЫ (РАЗДЕЛ 4) =================
+    function openDrawer(id) {
+      haptic('light');
+      const anyOpen = document.querySelectorAll('.modal-backdrop.open').length > 0;
+      if (!anyOpen) {
+        lockedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.body.style.top = `-${lockedScrollY}px`;
+        document.body.classList.add('scroll-locked');
+      }
+      document.getElementById(id).classList.add('open');
+    }
+
+    function closeDrawer(id) {
+      haptic('light');
+      const target = document.getElementById(id);
+      if (target) target.classList.remove('open');
+
+      const stillOpen = document.querySelectorAll('.modal-backdrop.open').length > 0;
+      if (!stillOpen && document.body.classList.contains('scroll-locked')) {
+        document.body.classList.remove('scroll-locked');
+        document.body.style.top = '';
+        window.scrollTo(0, lockedScrollY);
+      }
+    }
+
+    // ================= ИКОНКИ ПРИЛОЖЕНИЙ =================
+    function getAppIconSvg(iconName) {
+      const icons = {
+        shield: `<svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
+        music: `<svg class="w-5 h-5 text-[#FFCC00]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`,
+        steam: `<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.077 2.911c0 .052.005.105.005.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 14.819C1.947 20.057 6.748 24 12.021 24c6.627 0 12-5.373 12-12S18.605 0 11.979 0z"/></svg>`,
+        discord: `<svg class="w-5 h-5 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028z"/></svg>`,
+        telegram: `<svg class="w-5 h-5 text-sky-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.87 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.536-.196 1.006.128.824.966z"/></svg>`,
+        chrome: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.73C20.678 2.611 16.643 0 12 0zm1.789 13.091L8.257 3.518C3.5 4.964.075 9.387 0 14.654l5.342 3.084a5.454 5.454 0 0 1 8.447-4.647zm-1.08 4.364l-5.34 3.083C9.07 22.868 10.495 24 12 24c6.627 0 12-5.373 12-12 0-.825-.084-1.63-.243-2.409H12.71a5.454 5.454 0 0 1 0 7.864z"/></svg>`,
+        app: `<svg class="w-5 h-5 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>`
+      };
+      return icons[iconName] || icons.app;
+    }
+
+    // ================= ОПРОС СОСТОЯНИЯ СИСТЕМЫ =================
+    async function pollStatus(manual = false) {
+      const start = Date.now();
+      if (manual) document.getElementById('syncIcon').classList.add('rotate-180');
 
       try {
-        const res = await fetch(`${PC_URL}/terminal`, {
+        const res = await fetch(`${PC_URL}/status`, { headers: HEADERS });
+        if (!res.ok) throw new Error('Offline');
+        const data = await res.json();
+        lastState = data;
+        isPcOnline = true;
+
+        const ping = Date.now() - start;
+        document.getElementById('pingVal').innerText = `${ping} ms`;
+        document.getElementById('pingDot').className = 'w-1.5 h-1.5 rounded-full bg-appleGreen';
+        document.getElementById('connDot').className = 'absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-obsidian';
+        document.getElementById('connSubtext').innerText = 'Online • Windows 11 Pro';
+        document.getElementById('pcOnlineBadge').className = 'text-xs font-mono font-medium text-emerald-400';
+        document.getElementById('pcOnlineBadge').innerText = 'Активен';
+
+        if (data.network) {
+          document.getElementById('hostNetInfo').innerText = `IP: ${data.network.ip} • MAC: ${data.network.mac}`;
+        }
+
+        // Uptime
+        const hrs = Math.floor(data.uptime / 3600);
+        const mins = Math.floor((data.uptime % 3600) / 60);
+        document.getElementById('uptimeVal').innerText = `${hrs}ч ${mins}м`;
+
+        // CPU / GPU / RAM
+        document.getElementById('cpuText').innerText = `${data.cpu.percent}%`;
+        document.getElementById('cpuRing').setAttribute('stroke-dasharray', `${data.cpu.percent}, 100`);
+
+        document.getElementById('gpuText').innerText = `${data.gpu.percent}%`;
+        document.getElementById('gpuRing').setAttribute('stroke-dasharray', `${data.gpu.percent}, 100`);
+        document.getElementById('gpuTempText').innerText = `${data.gpu.temp}°C`;
+        document.getElementById('gpuPowerVal').innerText = `${data.gpu.power} W`;
+        document.getElementById('gpuFanVal').innerText = `${data.gpu.fan} %`;
+
+        document.getElementById('ramText').innerText = `${data.ram.percent}%`;
+        document.getElementById('ramRing').setAttribute('stroke-dasharray', `${data.ram.percent}, 100`);
+        document.getElementById('ramSubText').innerText = `${data.ram.used_gb} / ${data.ram.total_gb}G`;
+
+        // Happ
+        renderHappState(data.happ);
+
+        // Приложения
+        renderAppsGrid(data.apps);
+
+        // Системный звук
+        renderAudioState(data.audio);
+
+        // Яндекс Музыка
+        renderMusicState(data.music);
+
+        if (manual) showToast(`Синхронизировано • ${ping} мс`);
+      } catch (err) {
+        isPcOnline = false;
+        document.getElementById('pingVal').innerText = '-- ms';
+        document.getElementById('pingDot').className = 'w-1.5 h-1.5 rounded-full bg-appleRed';
+        document.getElementById('connDot').className = 'absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-appleRed ring-2 ring-obsidian';
+        document.getElementById('connSubtext').innerText = 'ПК выключен или вне сети';
+        document.getElementById('pcOnlineBadge').className = 'text-xs font-mono font-medium text-appleRed';
+        document.getElementById('pcOnlineBadge').innerText = 'Оффлайн';
+      } finally {
+        if (manual) setTimeout(() => document.getElementById('syncIcon').classList.remove('rotate-180'), 400);
+      }
+    }
+
+    function renderHappState(happ) {
+      if (!happ) return;
+      document.getElementById('happMainSub').innerText = happ.path;
+      const procBadge = document.getElementById('happProcBadge');
+      const vpnPill = document.getElementById('happVpnPill');
+
+      if (happ.running) {
+        procBadge.className = 'text-[10px] font-mono text-emerald-400';
+        procBadge.innerText = 'Запущен';
+      } else {
+        procBadge.className = 'text-[10px] font-mono text-zinc-400';
+        procBadge.innerText = happ.exists ? 'Остановлен' : 'Файл не найден';
+      }
+
+      if (happ.vpn_enabled) {
+        vpnPill.className = 'text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        vpnPill.innerText = 'VPN: ВКЛ';
+      } else {
+        vpnPill.className = 'text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/10';
+        vpnPill.innerText = 'VPN: ВЫКЛ';
+      }
+
+      const fileCheck = document.getElementById('happDrawerFileCheck');
+      fileCheck.className = happ.exists ? 'text-[10px] font-mono text-emerald-400 mt-0.5' : 'text-[10px] font-mono text-appleRed mt-0.5';
+      fileCheck.innerText = happ.exists ? '✓ Файл Happ.exe обнаружен' : '✕ Файл Happ.exe не найден по указанному пути';
+
+      document.getElementById('happDrawerStatusBadge').innerText = happ.running ? 'Активен' : 'Выключен';
+    }
+
+    function renderAppsGrid(apps) {
+      const grid = document.getElementById('appsGrid');
+      if (!apps) return;
+      grid.innerHTML = apps.map(app => {
+        const statusColor = app.running ? 'text-emerald-400' : (app.exists ? 'text-zinc-500' : 'text-appleRed');
+        const dotColor = app.running ? 'bg-emerald-400 animate-pulse' : (app.exists ? 'bg-zinc-600' : 'bg-appleRed');
+        const statusText = app.running ? 'Запущен' : (app.exists ? 'Остановлен' : 'Нет файла');
+        return `
+          <div onclick="openAppManageDrawer('${app.id}')" class="liquid-glass rounded-2xl p-3 flex flex-col items-center text-center interactive-card cursor-pointer">
+            <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2">
+              ${getAppIconSvg(app.icon)}
+            </div>
+            <span class="text-xs font-medium text-white truncate w-full">${app.name}</span>
+            <span class="mt-1 text-[10px] font-mono ${statusColor} flex items-center justify-center">
+              <span class="w-1.5 h-1.5 rounded-full ${dotColor} mr-1"></span>${statusText}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAudioState(audio) {
+      if (!audio) return;
+      document.getElementById('currentAudioDevLabel').innerText = audio.current_device_name || 'Системный выход';
+      const slider = document.getElementById('sysVolumeSlider');
+      if (!slider.matches(':active')) {
+        slider.value = audio.volume;
+        document.getElementById('sysVolumeText').innerText = `${audio.volume}%`;
+      }
+
+      const muteBtn = document.getElementById('muteBtn');
+      const volSvg = document.getElementById('volSvgIcon');
+      if (audio.muted) {
+        muteBtn.className = 'w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-appleRed interactive-card';
+        volSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />`;
+      } else {
+        muteBtn.className = 'w-9 h-9 rounded-xl bg-appleBlue/15 border border-appleBlue/30 flex items-center justify-center text-appleBlue interactive-card';
+        volSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />`;
+      }
+
+      // Рендер списка устройств внутри шторки
+      const listEl = document.getElementById('audioDevicesList');
+      if (audio.devices && audio.devices.length > 0) {
+        listEl.innerHTML = audio.devices.map(d => `
+          <button onclick="selectAudioDevice('${d.id.replace(/\\/g, '\\\\')}')" class="w-full p-3 rounded-2xl liquid-glass flex items-center justify-between text-left interactive-card ${d.is_default ? 'border-appleBlue bg-appleBlue/10' : ''}">
+            <div class="flex items-center space-x-3 min-w-0 pr-2">
+              <div class="w-8 h-8 rounded-xl ${d.is_default ? 'bg-appleBlue text-white' : 'bg-white/5 text-zinc-400'} flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-medium text-white truncate">${d.name}</p>
+                <span class="text-[10px] font-mono ${d.is_default ? 'text-appleBlue' : 'text-zinc-500'}">${d.is_default ? 'Устройство по умолчанию' : 'Доступен для переключения'}</span>
+              </div>
+            </div>
+            ${d.is_default ? '<span class="w-2 h-2 rounded-full bg-appleBlue shrink-0"></span>' : ''}
+          </button>
+        `).join('');
+      } else {
+        listEl.innerHTML = `<div class="text-xs text-zinc-400 text-center py-4">Активные аудиоустройства не обнаружены</div>`;
+      }
+    }
+
+    function renderMusicState(music) {
+      if (!music) return;
+      document.getElementById('ymTrackTitle').innerText = music.title || 'Неизвестный трек';
+      document.getElementById('ymTrackArtist').innerText = music.artist || 'Яндекс Музыка';
+
+      const launchBtn = document.getElementById('ymLaunchBtn');
+      launchBtn.innerText = music.running ? 'Плеер активен' : 'Запустить плеер';
+      launchBtn.className = music.running
+        ? 'px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-medium text-emerald-400 interactive-card'
+        : 'px-2.5 py-1 rounded-lg bg-[#FFCC00]/15 border border-[#FFCC00]/30 text-[10px] font-medium text-[#FFCC00] interactive-card';
+
+      const eq = document.getElementById('ymEqIndicator');
+      const playSvg = document.getElementById('ymPlaySvg');
+      const stateSub = document.getElementById('ymStateSub');
+
+      if (music.playing) {
+        eq.classList.remove('hidden');
+        eq.classList.add('flex');
+        playSvg.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+        playSvg.classList.remove('ml-0.5');
+        stateSub.innerText = 'Воспроизводится в Windows';
+        stateSub.className = 'text-[9px] font-mono text-emerald-400 block mt-0.5';
+      } else {
+        eq.classList.add('hidden');
+        eq.classList.remove('flex');
+        playSvg.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+        playSvg.classList.add('ml-0.5');
+        stateSub.innerText = music.running ? 'На паузе' : 'Процесс не запущен';
+        stateSub.className = 'text-[9px] font-mono text-zinc-500 block mt-0.5';
+      }
+
+      const coverImg = document.getElementById('ymCoverImg');
+      const defIcon = document.getElementById('ymDefaultIcon');
+      if (music.cover) {
+        coverImg.src = music.cover;
+        coverImg.classList.remove('hidden');
+        defIcon.classList.add('hidden');
+      } else {
+        coverImg.classList.add('hidden');
+        defIcon.classList.remove('hidden');
+      }
+    }
+
+    // ================= ДЕЙСТВИЯ HAPP =================
+    function openHappDrawer() {
+      if (lastState?.happ?.path) {
+        document.getElementById('happPathInput').value = lastState.happ.path;
+      }
+      openDrawer('drawerHapp');
+    }
+
+    async function sendHappAction(act) {
+      haptic('medium');
+      try {
+        const res = await fetch(`${PC_URL}/happ/action/${act}`, { method: 'POST', headers: HEADERS });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка выполнения');
+        showToast(data.message);
+        setTimeout(pollStatus, 500);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function saveHappPath() {
+      const path = document.getElementById('happPathInput').value.trim();
+      if (!path) return;
+      try {
+        const res = await fetch(`${PC_URL}/happ/config`, {
           method: 'POST',
-          headers: { ...HEADERS, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: val })
+          headers: HEADERS,
+          body: JSON.stringify({ happ_path: path })
         });
         const data = await res.json();
-        const resp = document.createElement('div');
-        resp.className = 'text-zinc-400 pl-3 border-l border-white/10 whitespace-pre-wrap font-mono text-[11px]';
-        resp.innerText = data.output;
-        out.appendChild(resp);
+        showToast(data.exists ? 'Путь сохранён (Файл найден)' : 'Путь сохранён, но файл не обнаружен', !data.exists);
+        pollStatus();
       } catch (err) {
-        const errLine = document.createElement('div');
-        errLine.className = 'text-red-400 pl-3 border-l border-red-500/20';
-        errLine.innerText = 'Ошибка соединения с PowerShell';
-        out.appendChild(errLine);
+        showToast('Ошибка сохранения пути', true);
       }
-      out.scrollTop = out.scrollHeight;
     }
 
-    // Скриншот
-    async function takeLiveScreenshot() {
+    // ================= ДЕЙСТВИЯ С ПРИЛОЖЕНИЯМИ =================
+    function openAppManageDrawer(appId) {
+      selectedAppId = appId;
+      const app = (lastState?.apps || []).find(a => a.id === appId);
+      if (!app) return;
+      document.getElementById('manageAppTitle').innerText = app.name;
+      document.getElementById('manageAppPath').innerText = app.path;
+      document.getElementById('manageAppBadge').innerText = app.running ? 'Работает' : 'Остановлен';
+      openDrawer('drawerAppManage');
+    }
+
+    async function execSelectedAppAction(action) {
+      if (!selectedAppId) return;
       haptic('medium');
-      showToast('Захват экрана...');
-      document.getElementById('screenshotModal').classList.remove('opacity-0', 'pointer-events-none');
+      try {
+        const res = await fetch(`${PC_URL}/apps/action`, {
+          method: 'POST',
+          headers: HEADERS,
+          body: JSON.stringify({ app_id: selectedAppId, action })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка');
+        showToast(data.message);
+        if (['remove', 'minimize', 'stop', 'start'].includes(action)) {
+          closeDrawer('drawerAppManage');
+        }
+        setTimeout(pollStatus, 500);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    function openAddAppDrawer() {
+      openDrawer('drawerAddApp');
+    }
+
+    async function submitAddApp(e) {
+      e.preventDefault();
+      const name = document.getElementById('addAppName').value.trim();
+      const path = document.getElementById('addAppPath').value.trim();
+      const process_name = document.getElementById('addAppProc').value.trim() || null;
+      try {
+        const res = await fetch(`${PC_URL}/apps/add`, {
+          method: 'POST',
+          headers: HEADERS,
+          body: JSON.stringify({ name, path, process_name, icon: 'app' })
+        });
+        if (!res.ok) throw new Error('Не удалось добавить приложение');
+        showToast(`Приложение ${name} добавлено в панель`);
+        e.target.reset();
+        closeDrawer('drawerAddApp');
+        pollStatus();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // ================= СИСТЕМНЫЙ ЗВУК И АУДИОВЫХОДЫ =================
+    function onVolumeSlide(val) {
+      document.getElementById('sysVolumeText').innerText = `${val}%`;
+    }
+
+    async function commitSystemVolume(val) {
+      haptic('light');
+      try {
+        await fetch(`${PC_URL}/audio/volume/${val}`, { method: 'POST', headers: HEADERS });
+      } catch (err) {
+        showToast('Ошибка изменения громкости', true);
+      }
+    }
+
+    async function toggleSystemMute() {
+      haptic('medium');
+      try {
+        const res = await fetch(`${PC_URL}/audio/mute`, { method: 'POST', headers: HEADERS });
+        const data = await res.json();
+        showToast(data.muted ? 'Системный звук выключен' : 'Системный звук включён');
+        pollStatus();
+      } catch (err) {
+        showToast('Ошибка переключения Mute', true);
+      }
+    }
+
+    function openAudioDevicesDrawer() {
+      openDrawer('drawerAudioDevices');
+    }
+
+    async function selectAudioDevice(deviceId) {
+      haptic('medium');
+      try {
+        const res = await fetch(`${PC_URL}/audio/device`, {
+          method: 'POST',
+          headers: HEADERS,
+          body: JSON.stringify({ device_id: deviceId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка переключения выхода');
+        showToast('Аудиовыход Windows переключён');
+        await pollStatus();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // ================= ЯНДЕКС МУЗЫКА =================
+    async function sendMusicCmd(cmd) {
+      haptic('medium');
+      try {
+        const res = await fetch(`${PC_URL}/music/action/${cmd}`, { method: 'POST', headers: HEADERS });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка управления плеером');
+        if (data.message) showToast(data.message);
+        if (data.music) renderMusicState(data.music);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // ================= ПИТАНИЕ И WAKE-ON-LAN =================
+    function openWolSettingsModal() {
+      if (lastState?.wol) {
+        document.getElementById('wolMacInput').value = lastState.wol.mac || '';
+        document.getElementById('wolIpInput').value = lastState.wol.ip || '255.255.255.255';
+        document.getElementById('wolPortInput').value = lastState.wol.port || 9;
+      }
+      openDrawer('drawerWol');
+    }
+
+    function handleWakeOnLanClick() {
+      if (isPcOnline) {
+        showToast('Компьютер уже включён и находится в сети');
+        openWolSettingsModal();
+      } else {
+        openWolSettingsModal();
+      }
+    }
+
+    async function sendWolPacket() {
+      haptic('medium');
+      const mac = document.getElementById('wolMacInput').value.trim();
+      const ip = document.getElementById('wolIpInput').value.trim();
+      const port = parseInt(document.getElementById('wolPortInput').value, 10) || 9;
+      try {
+        const res = await fetch(`${PC_URL}/wol/send`, {
+          method: 'POST',
+          headers: HEADERS,
+          body: JSON.stringify({ mac, ip, port })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка отправки WoL');
+        showToast(data.message);
+        closeDrawer('drawerWol');
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    function openPowerConfirm(action, title, desc) {
+      document.getElementById('powerConfirmTitle').innerText = title;
+      document.getElementById('powerConfirmDesc').innerText = desc;
+      const btn = document.getElementById('powerConfirmActionBtn');
+      btn.onclick = () => {
+        triggerPowerAction(action);
+        closeDrawer('drawerPowerConfirm');
+      };
+      openDrawer('drawerPowerConfirm');
+    }
+
+    async function triggerPowerAction(action) {
+      haptic('warning');
+      try {
+        const res = await fetch(`${PC_URL}/power/${action}`, { method: 'POST', headers: HEADERS });
+        if (!res.ok) throw new Error('Ошибка выполнения команды');
+        showToast(`Команда выполнена: ${action}`);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // ================= СКРИНШОТ =================
+    function openScreenshotDrawer() {
+      openDrawer('drawerScreenshot');
+      fetchScreenshot();
+    }
+
+    async function fetchScreenshot() {
       try {
         const res = await fetch(`${PC_URL}/screenshot`, { headers: HEADERS });
-        if (res.ok) {
-          const data = await res.json();
-          document.getElementById('liveScreenImg').src = data.image;
-          showToast('Экран получен');
-        } else {
-          showToast('Ошибка захвата', true);
+        const data = await res.json();
+        if (res.ok && data.image) {
+          document.getElementById('liveScreenshotImg').src = data.image;
         }
-      } catch (e) {
-        showToast('Агент скриншотов не отвечает', true);
+      } catch (err) {
+        showToast('Не удалось получить снимок экрана', true);
       }
     }
-    function closeScreenshotModal() {
-      document.getElementById('screenshotModal').classList.add('opacity-0', 'pointer-events-none');
-    }
 
-    // Космический Canvas
+    setInterval(pollStatus, 2500);
+    pollStatus();
+
+    // ================= ОПТИМИЗИРОВАННЫЙ КОСМИЧЕСКИЙ ФОН (CANVAS) =================
     const canvas = document.getElementById('space-canvas');
     const ctx = canvas.getContext('2d');
-    function resize() {
+    function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
-    window.addEventListener('resize', resize);
-    resize();
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-    const stars = Array.from({ length: 75 }, () => ({
+    const stars = Array.from({ length: 55 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      radius: Math.random() * 1.2 + 0.3,
-      alpha: Math.random() * 0.8 + 0.2,
-      speed: Math.random() * 0.015 + 0.005
+      r: Math.random() * 1.1 + 0.3,
+      a: Math.random() * 0.7 + 0.2
     }));
 
     const planets = [
-      {
-        x: canvas.width * 0.82, y: canvas.height * 0.16,
-        baseX: canvas.width * 0.82, baseY: canvas.height * 0.16,
-        r: 28, rotation: 0, rotSpeed: 0.008, orbitAngle: 0,
-        color1: '#4338ca', color2: '#0f172a', rings: true
-      },
-      {
-        x: canvas.width * 0.16, y: canvas.height * 0.76,
-        baseX: canvas.width * 0.16, baseY: canvas.height * 0.76,
-        r: 20, rotation: 0, rotSpeed: 0.005, orbitAngle: Math.PI,
-        color1: '#0284c7', color2: '#082f49', rings: false
-      }
+      { baseX: 0.84, baseY: 0.14, r: 26, rot: 0, speed: 0.006, angle: 0, c1: '#4338ca', c2: '#0f172a', rings: true },
+      { baseX: 0.14, baseY: 0.78, r: 18, rot: 0, speed: 0.004, angle: Math.PI, c1: '#0284c7', c2: '#082f49', rings: false }
     ];
 
-    function drawSpace() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      stars.forEach(s => {
-        s.alpha += Math.sin(Date.now() * s.speed) * 0.01;
-        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, Math.min(1, s.alpha))})`;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      planets.forEach(p => {
-        p.orbitAngle += 0.001;
-        p.x = p.baseX + Math.cos(p.orbitAngle) * 12;
-        p.y = p.baseY + Math.sin(p.orbitAngle) * 8;
-        p.rotation += p.rotSpeed;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.clip();
-
-        const grad = ctx.createRadialGradient(p.x - p.r * 0.35, p.y - p.r * 0.35, p.r * 0.1, p.x, p.y, p.r);
-        grad.addColorStop(0, p.color1);
-        grad.addColorStop(1, p.color2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(0.35);
-        const offset = (p.rotation * 35) % (p.r * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 2.5;
-        for (let i = -p.r * 2; i < p.r * 2; i += 10) {
+    function animateSpace() {
+      if (!document.hidden) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        stars.forEach(s => {
           ctx.beginPath();
-          ctx.arc(0, i + offset - p.r, p.r * 1.1, 0, Math.PI);
-          ctx.stroke();
-        }
-        ctx.restore();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
 
-        const shadow = ctx.createRadialGradient(p.x - p.r * 0.4, p.y - p.r * 0.4, p.r * 0.5, p.x, p.y, p.r);
-        shadow.addColorStop(0, 'rgba(0,0,0,0)');
-        shadow.addColorStop(1, 'rgba(0,0,0,0.85)');
-        ctx.fillStyle = shadow;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        planets.forEach(p => {
+          p.angle += 0.001;
+          p.rot += p.speed;
+          const px = canvas.width * p.baseX + Math.cos(p.angle) * 10;
+          const py = canvas.height * p.baseY + Math.sin(p.angle) * 7;
 
-        if (p.rings) {
           ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate(0.42);
-          ctx.scale(1, 0.28);
           ctx.beginPath();
-          ctx.arc(0, 0, p.r * 2.2, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(165, 180, 252, 0.22)';
-          ctx.lineWidth = 3.5;
-          ctx.stroke();
-          ctx.restore();
-        }
-      });
+          ctx.arc(px, py, p.r, 0, Math.PI * 2);
+          ctx.clip();
 
-      requestAnimationFrame(drawSpace);
+          const g = ctx.createRadialGradient(px - p.r * 0.3, py - p.r * 0.3, 2, px, py, p.r);
+          g.addColorStop(0, p.c1);
+          g.addColorStop(1, p.c2);
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.restore();
+
+          if (p.rings) {
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(0.4);
+            ctx.scale(1, 0.28);
+            ctx.beginPath();
+            ctx.arc(0, 0, p.r * 2.1, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(165, 180, 252, 0.2)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
+      }
+      requestAnimationFrame(animateSpace);
     }
-    drawSpace();
+    animateSpace();
   </script>
 </body>
 </html>
