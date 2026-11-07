@@ -94,6 +94,11 @@
   .ring-val{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--pixel);font-size:10px}
   .ring-val small{font-size:6px;color:var(--muted);margin-left:1px}
   .ring-name{font-family:var(--pixel);font-size:8px;color:var(--c)}
+  .disk-meter{padding:11px 12px;margin-top:8px}
+  .disk-head{display:flex;justify-content:space-between;align-items:center;font-family:var(--pixel);font-size:7px;color:var(--muted);margin-bottom:9px}
+  .disk-track{height:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);overflow:hidden}
+  .disk-fill{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--claude));transition:width .45s ease}
+  .disk-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px}
   .m-rows{width:100%;display:flex;flex-direction:column;gap:3px;min-height:48px}
   .m-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:0 4px;font-size:11px;line-height:1.35}
   .m-row .k{color:var(--muted)} .m-row .v{font-variant-numeric:tabular-nums} .m-row .v.hot{color:var(--red)}
@@ -218,6 +223,11 @@
 
   <!-- CPU / GPU / RAM -->
   <section class="grid grid-cols-3 gap-2" id="rings" aria-label="Мониторинг"></section>
+  <section class="glass disk-meter needs-pc" id="diskMeter" aria-label="Место на диске">
+    <div class="disk-head"><span>SSD / HDD · C:</span><span id="diskPercent">—</span></div>
+    <div class="disk-track"><div class="disk-fill" id="diskFill"></div></div>
+    <div class="disk-meta"><span id="diskUsed">Ожидание метрик</span><span id="diskFree">—</span></div>
+  </section>
 
   <!-- Power Hub -->
   <section class="glass card" aria-label="Power Hub">
@@ -479,30 +489,43 @@ function setConn(kind, msg) {
   dot.className = 'dot ' + dc; t.textContent = tt; s.textContent = ss;
   chip.textContent = cc; chip.className = 'chip ' + cls;
   S.conn = kind;
-  if (S.online && !was) { refreshAux(); }
   if (!S.online && was) { hap.warn(); }
 }
 
-/* ───────────── Опрос статистики ───────────── */
-let statsTimer = null;
-async function pollStats() {
-  clearTimeout(statsTimer);
-  if (document.hidden) return;
-  let delay = 1500;
-  try {
-    const t0 = performance.now();
-    const d = await api('/api/stats', { timeout: 5000 });
-    S.lat = Math.round(performance.now() - t0); S.fails = 0;
-    applyStats(d); setConn('online');
-  } catch (e) {
-    S.fails++;
-    if (e.status === 401) { setConn('expired', e.message); delay = 10000; }
-    else if (e.status === 403) { setConn('denied', e.message); delay = 15000; }
-    else if (e.status === 503 && /Датчики/.test(e.detail || '')) { setConn('connecting', 'Запускаются датчики…'); delay = 1000; }
-    else if (e.status === 429) { delay = 5000; }
-    else if (S.fails >= 2 || !S.online) { setConn(S.conn === 'connecting' && S.fails < 2 ? 'connecting' : 'offline'); delay = Math.min(6000, 1500 + S.fails * 750); }
-  }
-  statsTimer = setTimeout(pollStats, delay);
+function applyDisks(disks) {
+  const disk = (disks || []).find(x => /^c:/i.test(x.name || '')) || (disks || [])[0];
+  if (!disk) { $('#diskPercent').textContent = '—'; $('#diskUsed').textContent = 'Диск недоступен'; $('#diskFree').textContent = '—'; $('#diskFill').style.width = '0%'; return; }
+  const pct = Math.max(0, Math.min(100, Number(disk.percent) || 0));
+  $('#diskPercent').textContent = Math.round(pct) + '%'; $('#diskFill').style.width = pct + '%';
+  $('#diskUsed').textContent = `${disk.used_gb} / ${disk.total_gb} ГБ занято`;
+  $('#diskFree').textContent = `${Math.max(0, disk.total_gb - disk.used_gb).toFixed(1)} ГБ свободно`;
+}
+
+/* ───────────── Real-time WebSocket telemetry ───────────── */
+let telemetrySocket = null, reconnectTimer = null, reconnectDelay = 800, wsStopped = false;
+function connectTelemetry() {
+  if (wsStopped || document.hidden || telemetrySocket?.readyState === WebSocket.CONNECTING || telemetrySocket?.readyState === WebSocket.OPEN) return;
+  setConn('connecting');
+  const url = new URL(BASE + '/ws'); url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.searchParams.set('initData', tg.initData);
+  const ws = new WebSocket(url); telemetrySocket = ws;
+  ws.onopen = () => { reconnectDelay = 800; S.fails = 0; S.lat = 0; };
+  ws.onmessage = event => {
+    try {
+      const data = JSON.parse(event.data); S.lat = 0; S.fails = 0;
+      applyStats(data); applyDisks(data.disks); setConn('online');
+      if (Array.isArray(data.apps)) data.apps.forEach(paintApp);
+      if (data.vpn) paintVpn(data.vpn);
+    } catch (_) { /* ignore malformed frames; next snapshot will recover */ }
+  };
+  ws.onerror = () => ws.close();
+  ws.onclose = event => {
+    if (telemetrySocket === ws) telemetrySocket = null;
+    if (event.code === 4401) { setConn('expired', 'Сессия Telegram отклонена'); return; }
+    if (event.code === 4403) { setConn('denied'); return; }
+    setConn('offline');
+    if (!wsStopped && !document.hidden) { clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connectTelemetry, reconnectDelay); reconnectDelay = Math.min(10000, reconnectDelay * 1.7); }
+  };
 }
 
 /* ───────────── Приложения ───────────── */
@@ -573,15 +596,6 @@ $('#vpnToggle').addEventListener('click', async () => {
   const act = vpn.connected ? 'disconnect' : 'connect';
   await run('vpn', $('#vpnToggle'), () => api('/api/vpn/' + act, { method: 'POST', timeout: 45000 })); refreshVpn(); refreshApps();
 });
-
-/* ───────────── Фоновое обновление приложений/VPN ───────────── */
-let auxTimer = null;
-function refreshAux() { return Promise.allSettled([refreshApps(), refreshVpn()]); }
-async function pollAux() {
-  clearTimeout(auxTimer);
-  if (!document.hidden && S.online) await refreshAux();
-  auxTimer = setTimeout(pollAux, 3000);
-}
 
 /* ───────────── Power Hub ───────────── */
 const CONFIRM = {
@@ -693,9 +707,11 @@ if (!tg || !tg.initData) {
 } else if (!/^https:\/\/[^/]+/i.test(BASE) || /YOUR-NAME/i.test(BASE)) {
   showSetup('НУЖНА НАСТРОЙКА', 'В начале <code>index.html</code> укажите <code>API_URL</code> — HTTPS-адрес вашей публикации CloudPub.');
 } else {
-  pollStats(); pollAux();
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pollStats(); pollAux(); } });
-  addEventListener('online', () => { S.fails = 0; pollStats(); });
+  connectTelemetry();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { wsStopped = true; clearTimeout(reconnectTimer); telemetrySocket?.close(1000, 'hidden'); }
+    else { wsStopped = false; connectTelemetry(); }
+  });
 }
 })();
 </script>
