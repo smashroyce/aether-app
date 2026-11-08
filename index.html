@@ -529,10 +529,10 @@ function connectTelemetry() {
 }
 
 /* ───────────── Приложения ───────────── */
-const APP_ORDER = ['steam', 'discord', 'chrome', 'ayugram', 'happ'];
+const APP_ORDER = ['steam', 'discord', 'chrome', 'ayugram', 'happ', 'codex'];
 const APP_META = {
   steam: ['Steam', '#66C0F4', 'S'], discord: ['Discord', '#7C86F5', 'D'], chrome: ['Chrome', '#FBBC04', 'C'],
-  ayugram: ['AyuGram', '#2AABEE', 'A'], happ: ['Happ', '#D97757', 'H']
+  ayugram: ['AyuGram', '#2AABEE', 'A'], happ: ['Happ', '#D97757', 'H'], codex: ['Codex', '#E8E8E8', 'C']
 };
 const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 const ACTS = [['start', 'play', 'Запустить'], ['stop', 'stop', 'Остановить'], ['restart', 'refresh', 'Перезапустить'], ['minimize', 'min', 'Свернуть']];
