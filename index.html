@@ -95,6 +95,9 @@
   .ring-val small{font-size:6px;color:var(--muted);margin-left:1px}
   .ring-name{font-family:var(--pixel);font-size:8px;color:var(--c)}
   .disk-meter{padding:11px 12px;margin-top:8px}
+  .disk-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .disk-drive{min-width:0}
+  @media(max-width:360px){.disk-list{grid-template-columns:1fr}}
   .disk-head{display:flex;justify-content:space-between;align-items:center;font-family:var(--pixel);font-size:7px;color:var(--muted);margin-bottom:9px}
   .disk-track{height:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);overflow:hidden}
   .disk-fill{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--claude));transition:width .45s ease}
@@ -126,7 +129,8 @@
     background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}
   .app-row+.app-row{margin-top:8px}
   .app-ico{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;font-family:var(--pixel);font-size:11px;
-    color:var(--c);background:var(--cs);border:1px solid var(--cb)}
+    color:var(--c);background:var(--cs);border:1px solid var(--cb);overflow:hidden}
+  .app-ico img{width:100%;height:100%;object-fit:contain;border-radius:inherit}
   .app-info{flex:1;min-width:0}
   .app-name{font-size:14px;font-weight:600}
   .app-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:2px}
@@ -224,9 +228,18 @@
   <!-- CPU / GPU / RAM -->
   <section class="grid grid-cols-3 gap-2" id="rings" aria-label="Мониторинг"></section>
   <section class="glass disk-meter needs-pc" id="diskMeter" aria-label="Место на диске">
-    <div class="disk-head"><span>SSD / HDD · C:</span><span id="diskPercent">—</span></div>
-    <div class="disk-track"><div class="disk-fill" id="diskFill"></div></div>
-    <div class="disk-meta"><span id="diskUsed">Ожидание метрик</span><span id="diskFree">—</span></div>
+    <div class="disk-list" id="diskList">
+      <div class="disk-drive" data-drive="C">
+        <div class="disk-head"><span>SSD / HDD · C:</span><span data-disk-percent>—</span></div>
+        <div class="disk-track"><div class="disk-fill" data-disk-fill></div></div>
+        <div class="disk-meta"><span data-disk-used>Ожидание метрик</span><span data-disk-free>—</span></div>
+      </div>
+      <div class="disk-drive" data-drive="D" hidden>
+        <div class="disk-head"><span>SSD / HDD · D:</span><span data-disk-percent>—</span></div>
+        <div class="disk-track"><div class="disk-fill" data-disk-fill></div></div>
+        <div class="disk-meta"><span data-disk-used>Ожидание метрик</span><span data-disk-free>—</span></div>
+      </div>
+    </div>
   </section>
 
   <!-- Power Hub -->
@@ -493,12 +506,31 @@ function setConn(kind, msg) {
 }
 
 function applyDisks(disks) {
-  const disk = (disks || []).find(x => /^c:/i.test(x.name || '')) || (disks || [])[0];
-  if (!disk) { $('#diskPercent').textContent = '—'; $('#diskUsed').textContent = 'Диск недоступен'; $('#diskFree').textContent = '—'; $('#diskFill').style.width = '0%'; return; }
-  const pct = Math.max(0, Math.min(100, Number(disk.percent) || 0));
-  $('#diskPercent').textContent = Math.round(pct) + '%'; $('#diskFill').style.width = pct + '%';
-  $('#diskUsed').textContent = `${disk.used_gb} / ${disk.total_gb} ГБ занято`;
-  $('#diskFree').textContent = `${Math.max(0, disk.total_gb - disk.used_gb).toFixed(1)} ГБ свободно`;
+  const volumes = new Map();
+  (Array.isArray(disks) ? disks : []).forEach(disk => {
+    const match = /^([CD]):\\?$/i.exec(disk.name || '');
+    if (match) volumes.set(match[1].toUpperCase(), disk);
+  });
+  ['C', 'D'].forEach(letter => {
+    const row = $(`[data-drive="${letter}"]`, $('#diskList'));
+    const disk = volumes.get(letter);
+    row.hidden = letter === 'D' && !disk;
+    if (!disk) {
+      if (letter === 'C') {
+        $('[data-disk-percent]', row).textContent = '—';
+        $('[data-disk-used]', row).textContent = 'Диск недоступен';
+        $('[data-disk-free]', row).textContent = '—';
+        $('[data-disk-fill]', row).style.width = '0%';
+      }
+      return;
+    }
+    const total = Number(disk.total_gb), used = Number(disk.used_gb);
+    const pct = Math.max(0, Math.min(100, Number(disk.percent) || 0));
+    $('[data-disk-percent]', row).textContent = Math.round(pct) + '%';
+    $('[data-disk-fill]', row).style.width = pct + '%';
+    $('[data-disk-used]', row).textContent = `${used.toFixed(1)} / ${total.toFixed(1)} ГБ занято`;
+    $('[data-disk-free]', row).textContent = `${Math.max(0, total - used).toFixed(1)} ГБ свободно`;
+  });
 }
 
 /* ───────────── Real-time WebSocket telemetry ───────────── */
@@ -509,10 +541,34 @@ function connectTelemetry() {
   const url = new URL(BASE + '/ws'); url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.searchParams.set('initData', tg.initData);
   const ws = new WebSocket(url); telemetrySocket = ws;
-  ws.onopen = () => { reconnectDelay = 800; S.fails = 0; S.lat = 0; };
+  let pingTimer = null, pingTimeout = null, pingSentAt = 0, pingId = 0;
+  const sendPing = () => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    pingId++;
+    pingSentAt = performance.now();
+    ws.send('aether:ping:' + pingId);
+    clearTimeout(pingTimeout);
+    pingTimeout = setTimeout(() => {
+      if (telemetrySocket === ws && ws.readyState === WebSocket.OPEN) {
+        S.lat = null;
+        if (S.online) setConn('online');
+      }
+    }, 7000);
+  };
+  ws.onopen = () => { reconnectDelay = 800; S.fails = 0; S.lat = null; sendPing(); pingTimer = setInterval(sendPing, 10000); };
   ws.onmessage = event => {
+    if (typeof event.data === 'string' && event.data.startsWith('aether:pong:')) {
+      const receivedId = Number(event.data.slice('aether:pong:'.length));
+      if (receivedId === pingId && pingSentAt > 0) {
+        S.lat = Math.round(performance.now() - pingSentAt);
+        pingSentAt = 0;
+        clearTimeout(pingTimeout);
+        if (S.online) setConn('online');
+      }
+      return;
+    }
     try {
-      const data = JSON.parse(event.data); S.lat = 0; S.fails = 0;
+      const data = JSON.parse(event.data); S.fails = 0;
       applyStats(data); applyDisks(data.disks); setConn('online');
       if (Array.isArray(data.apps)) data.apps.forEach(paintApp);
       if (data.vpn) paintVpn(data.vpn);
@@ -520,6 +576,7 @@ function connectTelemetry() {
   };
   ws.onerror = () => ws.close();
   ws.onclose = event => {
+    clearInterval(pingTimer); clearTimeout(pingTimeout); pingSentAt = 0; S.lat = null;
     if (telemetrySocket === ws) telemetrySocket = null;
     if (event.code === 4401) { setConn('expired', 'Сессия Telegram отклонена'); return; }
     if (event.code === 4403) { setConn('denied'); return; }
@@ -534,19 +591,31 @@ const APP_META = {
   steam: ['Steam', '#66C0F4', 'S'], discord: ['Discord', '#7C86F5', 'D'], chrome: ['Chrome', '#FBBC04', 'C'],
   ayugram: ['AyuGram', '#2AABEE', 'A'], happ: ['Happ', '#D97757', 'H'], codex: ['Codex', '#E8E8E8', 'C']
 };
+const APP_ICONS = {
+  steam: 'assets/icons/steam.png', discord: 'assets/icons/discord.png', chrome: 'assets/icons/chrome.png',
+  ayugram: 'assets/icons/ayugram.png', happ: 'assets/icons/happ.png'
+};
 const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 const ACTS = [['start', 'play', 'Запустить'], ['stop', 'stop', 'Остановить'], ['restart', 'refresh', 'Перезапустить'], ['minimize', 'min', 'Свернуть']];
 (function buildApps() {
   $('#apps').innerHTML = APP_ORDER.map(id => {
     const [name, c, l] = APP_META[id];
     return `<div class="app-row" data-app="${id}">
-      <div class="app-ico" style="--c:${c};--cs:${hexA(c, .14)};--cb:${hexA(c, .38)}">${l}</div>
+      <div class="app-ico" data-app-icon="${id}" role="img" aria-label="${name}" style="--c:${c};--cs:${hexA(c, .14)};--cb:${hexA(c, .38)}"><span aria-hidden="true">${l}</span></div>
       <div class="app-info"><div class="app-name">${name}</div>
         <div class="app-status"><i class="dot"></i><span>Проверка…</span></div></div>
       <div class="app-actions">${ACTS.map(([a, i, t]) =>
         `<button class="ibtn press" data-act="${a}" aria-label="${t}" title="${t}" disabled><span data-i="${i}"></span></button>`).join('')}</div>
     </div>`;
   }).join('');
+  $$('[data-app-icon]', $('#apps')).forEach(el => {
+    const src = APP_ICONS[el.dataset.appIcon];
+    if (!src) return;
+    const img = new Image();
+    img.src = src;
+    img.alt = '';
+    img.addEventListener('load', () => el.replaceChildren(img), { once: true });
+  });
   paintIcons($('#apps'));
 })();
 
